@@ -6,6 +6,7 @@ use POE;
 use Carp 'confess';
 
 extends 'POEx::IRC::Client::Lite';
+
 #### TODO
 ## CAP negotiation.
 ##   We have multi-prefix support in our WHO parser.
@@ -20,7 +21,15 @@ extends 'POEx::IRC::Client::Lite';
 use POEx::IRC::Client::Heavy::State;
 
 use IRC::Message::Object 'ircmsg';
+
 use IRC::Toolkit;
+
+has casemap => (
+  is      => 'ro',
+  writer  => 'set_casemap',
+  default => sub { 'rfc1459' },
+);
+with 'IRC::Toolkit::Role::CaseMap';
 
 use MooX::Role::Pluggable::Constants;
 
@@ -28,7 +37,6 @@ use MooX::Role::Pluggable::Constants;
 has state => (
   lazy    => 1,
   is      => 'ro',
-  clearer => '_clear_state',
   writer  => '_set_state',
   default => sub {
     POEx::IRC::Client::Heavy::State->new
@@ -36,9 +44,18 @@ has state => (
 );
 
 
+has _isupport_lines => (
+  lazy    => 1,
+  is      => 'ro',
+  writer  => '_set_isupport_lines',
+  default => sub { [] },
+);
+
+
 ### Overrides.
 
 ## FIXME override _send to do flood prot ?
+##  actually, see POEx::IRC::Backend TODO
 
 around ircsock_disconnect => sub {
   my $orig = shift;
@@ -81,29 +98,6 @@ around _ctcp => sub {
 
 
 ### Public.
-sub get_prefix_hash {
-  my ($self) = @_;
-
-  my %prefixes = (
-    'o' => '@',
-    'h' => '%',
-    'v' => '+',
-  );
-
-  PREFIX: {
-    if (my $sup_prefix = $self->state->get_isupport('prefix')) {
-      my (undef, $modes, $symbols) = split /[\()]/, $sup_prefix;
-      last PREFIX unless $modes and $symbols
-        and length $modes == length $symbols;
-      $modes   = [ split '', $modes ];
-      $symbols = [ split '', $symbols ];
-      @prefixes{@$modes} = @$symbols
-    }
-  }
-
-  \%prefixes
-}
-
 ## FIXME these should maybe have POE counterparts
 sub monitor {
   ## FIXME transparently use NOTIFY if no MONITOR support?
@@ -116,7 +110,7 @@ sub unmonitor {
 sub who {
   my ($self, $target, $whox) = @_;
 
-  if ($whox || $self->state->get_isupport('whox')) {
+  if ($whox || $self->state->isupport->whox) {
     ## Send WHOX, hope for a compliant implementation.
     $self->send( 
       ev( 
@@ -222,6 +216,8 @@ sub N_irc_001 {
     (split ' ', $ircev->raw_line)[2]
   );
 
+  $self->_set_isupport_lines([]);
+
   EAT_NONE
 }
 
@@ -229,24 +225,14 @@ sub N_irc_005 {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  my %isupport;
-  my @params = @{ $ircev->params };
-  ## Drop target nickname, trailing 'are supported by ..':
-  shift @params;
-  pop   @params;
+  ##  Accumulate and preserve isupport lines
+  ##  Feed the whole set to parse_isupport as we get 005s
+  push @{ $self->_isupport_lines }, $ircev->raw_line;
+  $self->state->create_isupport(@{ $self->_isupport_lines });
 
-  for my $item (@params) {
-    my ($key, $val) = split /=/, $item, 2;
-    $key = lc $key;
-    if (defined $val) {
-      $isupport{$key} = $val
-    } else {
-      $isupport{$key} = -1;
-    }
+  if (my $cmap = $self->state->isupport->casemap) {
+    $self->set_casemap($cmap)
   }
-
- $self->state->isupport_struct->extend_with( $_, $isupport{$_} )
-   for keys %isupport;
 
   EAT_NONE
 }
@@ -309,7 +295,11 @@ sub N_irc_352 {
     ## FIXME track these (timer?)
   }
 
-  my %pfx_chars   = map {; $_ => 1 } values %{ $self->get_prefix_hash };
+  my %pfx_chars   = map {; $_ => 1 } 
+    values %{ 
+      $self->state->isupport->prefix || +{ 'o' => '@', 'v' => '+' } 
+    };
+
   my $current_ref = $chan_obj->present->{ $self->upper($nick) };
   my %current     = map {; $_ => 1 } @$current_ref;
 
@@ -363,10 +353,9 @@ sub N_irc_354 {
 sub N_irc_730 {
   ## MONONLINE
   my (undef, $self) = splice @_, 0, 2;
+  return unless $self->state->isupport->monitor;
+
   my $ircev = ${ $_[0] };
-
-  return unless $self->state->get_isupport('monitor');
-
   my @targets = split /,/, $ircev->params->[1];
   $self->emit( 'monitor_online', @targets );
 
@@ -376,10 +365,9 @@ sub N_irc_730 {
 sub N_irc_731 {
   ## MONOFFLINE
   my (undef, $self) = splice @_, 0, 2;
+  return unless $self->state->isupport->monitor;
+
   my $ircev = ${ $_[0] };
-
-  return unless $self->state->get_isupport('monitor');
-
   my @targets = split /,/, $ircev->params->[1];
   $self->emit( 'monitor_offline', @targets );
 
@@ -389,10 +377,9 @@ sub N_irc_731 {
 sub N_irc_734 {
   ## MONLISTFULL
   my (undef, $self) = splice @_, 0, 2;
+  return unless $self->state->isupport->monitor;
+
   my $ircev = ${ $_[0] };
-
-  return unless $self->state->get_isupport('monitor');
-
   my (undef, $limit, $targets) = @{ $ircev->params };
   $self->emit( 'monitor_list_full', $limit, split(/,/, $targets) );
 
@@ -440,10 +427,8 @@ sub N_irc_away {
   }
 
   if (@{ $ircev->params }) {
-    ## Went away.
     $user_obj->is_away(1);
   } else {
-    ## Came back.
     $user_obj->is_away(0);
   }
 
@@ -465,11 +450,10 @@ sub N_irc_mode {
 
   my $chan_obj = $self->state->get_channel($target);
 
-  my(@always, @whenset);
-  if (my $cmodes = $self->state->get_isupport('chanmodes')) {
-    my ($list, $always, $whenset) = split /,/, $cmodes;
-    push @always,  split('', $list), split('', $always);
-    push @whenset, split '', $whenset;
+  my (@always, @whenset);
+  if (my $cmodes = $self->state->isupport->chanmodes) {
+    @always  = @{ $cmodes->always };
+    @whenset = @{ $cmodes->whenset };
   }
 
   ## FIXME
@@ -481,7 +465,9 @@ sub N_irc_mode {
     ( @whenset ?  (param_set    => \@whenset) : () ),
   );
 
-  my %prefixes = %{ $self->get_prefix_hash };
+  my %prefixes = %{ 
+    $self->state->isupport->prefix || +{ 'o' => '@', 'v' => '+' }
+  };
 
   MODE_ADD: for my $char (keys %{ $mode_hash->{add} }) {
     next MODE_ADD unless exists $prefixes{$char}
@@ -516,8 +502,6 @@ sub N_irc_join {
 
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
 
-  my $casemap = $self->state->get_isupport('casemap');
-
   ## FIXME does our own JOIN include account in extended-join ?
   my ($account, $orig);
   if ($self->state->has_capabs('extended-join')) {
@@ -527,10 +511,10 @@ sub N_irc_join {
     $orig = $ircev->params->[0];
   }
 
-  my $target  = uc_irc( $orig, $casemap );
-  $nick       = uc_irc( $nick, $casemap );
+  my $target = $self->upper($orig);
+  $nick      = $self->upper($nick);
 
-  if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
+  if ( $self->equal($nick, $self->state->nick_name) ) {
     ## Us. Add new Channel struct.
     $self->state->channels->{$target} = Channel->new(
       name      => $orig,
@@ -564,9 +548,9 @@ sub N_irc_part {
   my $ircev = ${ $_[0] };
 
   my ($nick)  = parse_user( $ircev->prefix );
-  my $casemap = $self->state->get_isupport('casemap');
-  my $target  = uc_irc( $ircev->params->[0], $casemap );
-  $nick       = uc_irc( $nick, $casemap );
+
+  my $target = $self->upper( $ircev->params->[0] );
+  $nick      = $self->upper( $nick );
   
   delete $self->state->channels->{$target};
 
@@ -583,9 +567,8 @@ sub N_irc_quit {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  my ($nick)  = parse_user( $ircev->prefix );
-  my $casemap = $self->state->get_isupport('casemap');
-  $nick       = uc_irc( $nick, $casemap );
+  my ($nick) = parse_user( $ircev->prefix );
+  $nick      = $self->upper($nick);
 
   while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
     delete $chan_obj->present->{$nick}
@@ -602,11 +585,9 @@ sub N_irc_topic {
   
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
   my ($target, $str) = @{ $ircev->params };
+  $target = $self->upper($target);
 
   ## FIXME object api for new State
-
-  my $casemap = $self->state->get_isupport('casemap');
-  $target     = uc_irc( $target, $casemap );
  
   my $chan_obj = $self->state->channels->{$target};
   $chan_obj->topic( Topic->new(
