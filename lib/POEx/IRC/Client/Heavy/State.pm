@@ -206,3 +206,81 @@ sub capabs {
 
 1;
 
+
+
+FIXME this is the POD as extracted from Lite
+
+
+=head2 State
+
+The State struct provides some very basic state information that can be
+queried via accessor methods:
+
+=head3 nick_name
+
+  my $current_nick = $irc->state->nick_name;
+
+Returns the client's current nickname.
+
+=head3 server_name
+
+  my $current_serv = $irc->state->server_name;
+
+Returns the server's announced name.
+
+=head3 get_isupport
+
+  my $casemap = $irc->state->get_isupport('casemap');
+
+Returns ISUPPORT values, if they are available.
+
+If the value is a KEY=VALUE pair (e.g. 'MAXMODES=4'), the VALUE portion is
+returned.
+
+A value that is a simple boolean (e.g. 'CALLERID') will return '-1'.
+
+=head3 get_channel
+
+  my $chan_st = $irc->state->get_channel($channame);
+
+If the channel is found, returns a Channel struct with the following accessor
+methods:
+
+=head4 nicknames
+
+  my @users = keys %{ $chan_st->nicknames };
+
+A HASH whose keys are the users present on the channel.
+
+If a user has status modes, the values are an ARRAY of status prefixes (f.ex,
+o => '@', v => '+', ...)
+
+=head4 status_prefix_for
+
+
+=head4 topic
+
+  my $topic_st = $chan_st->topic;
+  my $topic_as_string = $topic_st->topic();
+
+The Topic struct provides information about the current channel topic via
+accessors:
+
+=over
+
+=item *
+
+B<topic> is the actual topic string
+
+=item *
+
+B<set_at> is the timestamp of the topic change
+
+=item *
+
+B<set_by> is the topic's setter
+
+=back
+
+
+
