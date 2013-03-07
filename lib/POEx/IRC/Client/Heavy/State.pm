@@ -30,20 +30,6 @@ use MooX::Struct -rw,
     +set_at
     topic!
   / ],
-
-  ISupport => [ 
-    qw/
-      casemap!
-    /,
-    extend_with => sub {
-      my ($self, $key, $val) = @_;
-      $self->isupport_struct->EXTEND(
-        -rw => $key
-      ) unless $self->isupport_struct->can($key);
-      $self->isupport_struct->$key( $val )
-        if defined $val;
-    },
-  ],
 ;
 
 ## Factory method for subclasses.
@@ -52,8 +38,6 @@ sub _create_struct {
   my $obj;
   for (lc $type) {
     $obj = Channel->new(@_)  when 'channel';
-    $obj = ISupport->new(@_) when 'isupport';
-    $obj = State->new(@_)    when 'state';
     $obj = Topic->new(@_)    when 'topic';
     $obj = User->new(@_)     when 'user';
     confess "cannot create struct - unknown type $type"
@@ -91,21 +75,30 @@ has $_ => (
 /;
 
 
-has 'isupport_struct' => (
+has 'isupport' => (
+  ## Should be created via create_isupport
+  ##  (after accumulating 005s)
   is        => 'ro',
   isa       => Object,
-  writer    => '_set_isupport_struct',
-  predicate => '_has_isupport_struct',
-  default   => sub { ISupport->new(casemap => 'rfc1459') },
+  writer    => '_set_isupport',
+  predicate => '_has_isupport',
 );
+
+sub create_isupport {
+  my ($self, @items) = @_;
+  $self->_set_isupport(
+    parse_isupport(@items)
+  )
+}
 
 
 sub casemap {
   my ($self) = @_;
-  $self->isupport_struct->casemap || 'rfc1459'
+  return 'rfc1459' unless $self->_has_isupport;
+  $self->isupport->casemap || 'rfc1459'
 }
-with 'IRC::Server::Pluggable::Role::CaseMap';
 
+with 'IRC::Toolkit::Role::CaseMap';
 
 
 ## Channels
@@ -175,16 +168,6 @@ sub get_user {
   my ($self, $nick) = @_;
   confess "Expected a nickname" unless defined $nick;
   $self->_users->{ $self->upper($nick) }
-}
-
-
-## ISUPPORT
-sub get_isupport {
-  my ($self, $key) = @_;
-  confess "Expected a key" unless defined $key;
-  $key = lc $key;
-  return unless $self->isupport_struct->can($key);
-  $self->isupport_struct->$key
 }
 
 
