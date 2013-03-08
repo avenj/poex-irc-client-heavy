@@ -37,6 +37,8 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 This class defines lightweight struct-like objects representing channel
 topics for L<POEx::IRC::Client::Heavy>.
 
+These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
+
 See L<POEx::IRC::Client::Heavy::State>.
 
 =head2 topic

@@ -36,8 +36,10 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 
 =head1 DESCRIPTION
 
-This class defines struct-like objects representing IRC channels for
-L<POEx::IRC::Client::Heavy>.
+This class defines struct-like objects representing the state of an 
+IRC channel for L<POEx::IRC::Client::Heavy>.
+
+These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
 
 See L<POEx::IRC::Client::Heavy::State>.
 
