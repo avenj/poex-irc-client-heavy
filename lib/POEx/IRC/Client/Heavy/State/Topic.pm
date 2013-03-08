@@ -12,12 +12,12 @@ has_ro set_at => ( default => 0 );
 
 sub new {
   my ($cls, %params) = @_;
-  my $self = +{%params};
   my @required = qw/ topic set_by /;
   for my $opt (@required) {
     confess "Missing required param $opt"
-      unless defined $self->{$opt};
+      unless defined $params{$opt};
   }
+  bless +{%params}, $cls
 }
 
 1;
