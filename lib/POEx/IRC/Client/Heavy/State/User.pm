@@ -17,7 +17,6 @@ has_ro is_oper  => ( default  => 0 );
 
 sub new {
   my ($cls, %params) = @_;
-  my $self = +{};
 
   my @required = qw/
     nick
@@ -26,24 +25,12 @@ sub new {
     realname
   /;
 
-  my @optional = qw/
-    account
-  /;
-
-  my @bool = qw/
-    is_away
-    is_oper
-  /;
-
   for my $opt (@required) {
     confess "Missing required param $opt"
       unless defined $params{$opt};
-    $self->{$opt} = $params{$opt}
   }
 
-  for my $opt (@optional, @bool) {
-    $self->{$opt} = $params{$opt}
-  }
+  my $self = +{%params};
 
   bless $self, $cls;
   $self
