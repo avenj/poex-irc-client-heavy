@@ -9,33 +9,11 @@ use Scalar::Util 'weaken';
 
 use IRC::Toolkit;
 
+sub Channel () { 'POEx::IRC::Client::Heavy::State::Channel' }
+sub Topic   () { 'POEx::IRC::Client::Heavy::State::Topic'   }
+sub User    () { 'POEx::IRC::Client::Heavy::State::User'    }
+
 use namespace::clean;
-
-## FIXME ETOOMUCHMAGIC, use State:: classes instead
-##  these have various overloads . . .
-use MooX::Struct -rw,
-  Channel => [ qw/
-    name
-    %present
-    $topic
-  / ],
-
-  User    => [ qw/
-    account
-    nick
-    user
-    host
-    realname
-    +is_away
-    +is_oper
-  / ],
-
-  Topic   => [ qw/
-    set_by!
-    +set_at
-    topic!
-  / ],
-;
 
 sub create_struct {
   ## Factory method to make it easier for subclasses to build ::Structs
