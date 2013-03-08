@@ -23,16 +23,7 @@ use POEx::IRC::Client::Heavy::State;
 use IRC::Message::Object 'ircmsg';
 
 use IRC::Toolkit;
-
-has casemap => (
-  is      => 'ro',
-  writer  => 'set_casemap',
-  default => sub { 'rfc1459' },
-);
-with 'IRC::Toolkit::Role::CaseMap';
-
 use MooX::Role::Pluggable::Constants;
-
 
 has state => (
   lazy    => 1,
@@ -43,6 +34,8 @@ has state => (
   },
 );
 
+sub casemap { $_[0]->state->casemap }
+with 'IRC::Toolkit::Role::CaseMap';
 
 has _isupport_lines => (
   lazy    => 1,
@@ -230,10 +223,6 @@ sub N_irc_005 {
   push @{ $self->_isupport_lines }, $ircev->raw_line;
   $self->state->create_isupport(@{ $self->_isupport_lines });
 
-  if (my $cmap = $self->state->isupport->casemap) {
-    $self->set_casemap($cmap)
-  }
-
   EAT_NONE
 }
 
@@ -244,8 +233,11 @@ sub N_irc_332 {
 
   my (undef, $target, $topic) = @{ $ircev->params };
 
-  my $chan_obj = $self->state->get_channel($target);
-  $chan_obj->topic->topic( $topic );
+  $self->state->update_channel( $target =>
+    topic => $self->state->create_struct( Topic =>
+      topic => $topic
+    ),
+  );
 
   EAT_NONE
 }
@@ -257,9 +249,12 @@ sub N_irc_333 {
 
   my (undef, $target, $setter, $ts) = @{ $ircev->params };
  
-  my $chan_obj = $self->state->get_channel($target);
-  $chan_obj->topic->set_at( $ts );
-  $chan_obj->topic->set_by( $setter );
+  $self->state->update_channel( $target =>
+    topic => $self->state->create_struct( Topic =>
+      set_at => $ts,
+      set_by => $setter,
+    ),
+  );
 
   EAT_NONE
 }
@@ -281,6 +276,9 @@ sub N_irc_352 {
     undef       ## Hops + Realname
   ) = @{ $ircev->params };
   
+  ## FIXME kill this
+  ## FIXME accumulate params and use update_channel / update_user interfaces
+  ##  should open the door to using immutable objs
   my $chan_obj = $self->state->get_channel($target);
   my $user_obj = $self->state->get_user($nick);
   return EAT_NONE unless defined $chan_obj and defined $user_obj;
@@ -295,10 +293,10 @@ sub N_irc_352 {
     ## FIXME track these (timer?)
   }
 
-  my %pfx_chars   = map {; $_ => 1 } 
-    values %{ 
-      $self->state->isupport->prefix || +{ 'o' => '@', 'v' => '+' } 
-    };
+  my %pfx_chars   = map {; $_ => 1 } values %{
+    $self->state->isupport->prefix 
+      || +{ o => '@', v => '+' } 
+  };
 
   my $current_ref = $chan_obj->present->{ $self->upper($nick) };
   my %current     = map {; $_ => 1 } @$current_ref;

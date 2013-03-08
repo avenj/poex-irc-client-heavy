@@ -104,8 +104,9 @@ sub casemap {
 
 with 'IRC::Toolkit::Role::CaseMap';
 
-## FIXME update_* methods need to work on immutable objs
 ## Channels
+## FIXME needs to work on immutable objs
+##  see User->new_with_params and update_user
 sub update_channel {
   my ($self, $channel, %params) = @_;
   my $upper = $self->upper($channel);
@@ -173,19 +174,19 @@ sub update_user {
   my ($self, $nick, %params) = @_;
   my $upper = $self->upper($nick);
 
-  my $struct;
-  if ($struct = $self->_users->{$upper}) {
-    ## Update existing struct.
-    while (my ($key, $value) = each %params) {
-      $struct->$key( $value )
-    }
+  if (my $struct = $self->_users->{$upper}) {
+    $self->_users->{$upper} = $struct->new_with_params(
+      nick => $nick,
+      %params
+    );
   } else {
-    ## New user.
-    $struct = User->new( nick => $nick, %params );
-    $self->_users->{$upper} = $struct;
+    $self->_users->{$upper} = $self->create_struct( User =>
+      nick => $nick,
+      %params
+    );
   }
 
-  $struct
+  $self->_users->{$upper}
 }
 
 sub del_user {

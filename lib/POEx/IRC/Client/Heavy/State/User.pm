@@ -1,43 +1,58 @@
 package POEx::IRC::Client::Heavy::State::User;
+use 5.10.1;
 use strictures 1;
 use Carp;
 
-use Moo;
-use MooX::Types::MooseLike::Base ':all';
-use namespace::clean;
+use Storable 'dclone';
 
-has account => (
-  is  => 'ro',
-);
+sub new {
+  my ($cls, %params) = @_;
+  my $self = +{};
 
-has nick => (
-  required  => 1,
-  is        => 'ro',
-);
+  my @required = qw/
+    nick
+    user
+    host
+    realname
+  /;
 
-has user => (
-  required  => 1,
-  is        => 'ro',
-);
+  my @optional = qw/
+    account
+  /;
 
-has host => (
-  required  => 1,
-  is        => 'ro',
-);
+  my @bool = qw/
+    is_away
+    is_oper
+  /;
 
-has realname => (
-  required  => 1,
-  is        => 'ro',
-);
+  for my $opt (@required) {
+    confess "Missing required param $opt"
+      unless defined $params{$opt};
+    $self->{$opt} = $params{$opt}
+  }
 
-has is_away => (
-  is        => 'ro',
-  default   => sub { 0 },
-);
+  for my $opt (@optional, @bool) {
+    $self->{$opt} = $params{$opt}
+      if defined $params{$opt}
+  }
 
-has is_oper => (
-  is        => 'ro',
-  default   => sub { 0 },
-);
+  bless $self, $cls;
+  $self
+}
+
+sub new_with_params {
+  my ($self, %params) = @_;
+  my %cur = %{ dclone $self };
+  @cur{keys %params} = values %params;
+  ref($self)->new(%cur)
+}
+
+sub account  { $_[0]->{account} }
+sub nick     { $_[0]->{nick}    }
+sub user     { $_[0]->{user}    }
+sub host     { $_[0]->{host}    }
+sub realname { $_[0]->{realname} }
+sub is_away  { $_[0]->{is_away} // 0 }
+sub is_oper  { $_[0]->{is_oper} // 0 }
 
 1;
