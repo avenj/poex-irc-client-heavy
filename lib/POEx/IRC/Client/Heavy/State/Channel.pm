@@ -1,8 +1,9 @@
 package POEx::IRC::Client::Heavy::State::Channel;
 use strictures 1;
 use Carp;
-use Role::Tiny::With;
+use Scalar::Util 'blessed';
 
+use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
 with 'POEx::IRC::Client::Heavy::Role::Clonable';
 
@@ -14,7 +15,19 @@ has_ro present => ( default => +{} );
 
 sub new {
   my ($cls, %params) = @_;
+
   confess "Expected a 'name' parameter" unless defined $params{name};
+
+  if (defined $params{topic}) {
+    my $topic = $params{topic};
+    confess "Expected blessed object but got $topic"
+      unless blessed $topic;
+    for my $meth (qw/ topic set_at set_by /) {
+      confess "$topic missing required method $meth"
+        unless $topic->can($meth)
+    }
+  }
+
   bless +{%params}, $cls
 }
 
