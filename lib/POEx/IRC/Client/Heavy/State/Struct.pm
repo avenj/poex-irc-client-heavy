@@ -4,19 +4,22 @@ use strictures 1;
 use Carp;
 
 use Exporter 'import';
-our @EXPORT = 'has_ro';
+our @EXPORT = qw/
+  has_ro
+  has_rw 
+/;
 
 sub has_ro {
   my ($acc, %params) = @_;
-  no strict 'refs';
-  if (defined $params{default}) {
 
-    my $default = ref $params{default} eq 'CODE' ?
-      $params{default}->() : $params{default};
+  no strict 'refs';
+  if (defined (my $default = $params{default})) {
 
     *{ caller().'::'.$acc } = sub {
       confess "Read-only attribute $acc" if @_ > 1;
-      $_[0]->{$acc} //= $default
+      return $_[0]->{$acc} if exists $_[0]->{$acc};
+      $_[0]->{$acc} = ref $default eq 'CODE' ?
+        $default->($_[0]) : $default;
     }
 
   } else {
@@ -31,17 +34,17 @@ sub has_ro {
 
 sub has_rw {
   my ($acc, %params) = @_;
-  no strict 'refs';
-  if (defined $params{default}) {
 
-    my $default = ref $params{default} eq 'CODE' ?
-      $params{default}->() : $params{default};
+  no strict 'refs';
+  if (defined (my $default = $params{default})) {
 
     *{ caller().'::'.$acc } = sub {
       confess "Too many arguments passed to writer for $acc"
         if @_ > 2;
-      return $_[0]->{$acc} = $_[1] if @_ > 1;
-      $_[0]->{$acc} //= $default
+      return $_[0]->{$acc} = $_[1] if @_ == 2;
+      return $_[0]->{$acc} if exists $_[0]->{$acc};
+      $_[0]->{$acc} = ref $default eq 'CODE' ?
+        $default->($_[0]) : $default;
     }
 
   } else {
@@ -49,7 +52,7 @@ sub has_rw {
     *{ caller().'::'.$acc } = sub {
       confess "Too many arguments passed to writer for $acc"
         if @_ > 2;
-      return $_[0]->{$acc} = $_[1] if @_ > 1;
+      return $_[0]->{$acc} = $_[1] if @_ == 2;
       $_[0]->{$acc}
     }
 
@@ -113,6 +116,9 @@ All defaults are lazy. There are no fancy features.
 Creates a read-only attribute. A B<default> can optionally be specified:
 
   has_ro stuff => ( default => 'things' );
+
+The B<default> can be a coderef, in which case it is passed the '$self'
+object.
 
 =head3 has_rw
 
