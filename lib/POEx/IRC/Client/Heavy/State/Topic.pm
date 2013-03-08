@@ -1,23 +1,24 @@
 package POEx::IRC::Client::Heavy::State::Topic;
 use strictures 1;
 use Carp;
+use Role::Tiny::With;
 
-use Moo;
+use POEx::IRC::Client::Heavy::State::Struct;
+with 'POEx::IRC::Client::Heavy::Role::Clonable';
 
-has topic => (
-  required  => 1,
-  is        => 'ro',
-);
+has_ro topic  => ();
+has_ro set_by => ();
+has_ro set_at => ( default => 0 );
 
-has set_at => (
-  is        => 'ro',
-  default   => sub { 0 },
-);
-
-has set_by => (
-  required  => 1,
-  is        => 'ro',
-);
+sub new {
+  my ($cls, %params) = @_;
+  my $self = +{%params};
+  my @required = qw/ topic set_by /;
+  for my $opt (@required) {
+    confess "Missing required param $opt"
+      unless defined $self->{$opt};
+  }
+}
 
 1;
 

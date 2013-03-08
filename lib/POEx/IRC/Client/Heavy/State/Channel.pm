@@ -6,6 +6,8 @@ use Moo;
 use MooX::Types::MooseLike::Base ':all';
 use namespace::clean;
 
+## FIXME convert to State::Struct + Role::Clonable
+
 has name => (
   required => 1,
   is       => 'ro',

@@ -3,9 +3,17 @@ use 5.10.1;
 use strictures 1;
 use Carp;
 
-use Storable 'dclone';
-
+use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
+with 'POEx::IRC::Client::Heavy::Role::Clonable';
+
+has_ro account  => ();
+has_ro nick     => ();
+has_ro user     => ();
+has_ro host     => ();
+has_ro realname => ();
+has_ro is_away  => ( default  => 0 );
+has_ro is_oper  => ( default  => 0 );
 
 sub new {
   my ($cls, %params) = @_;
@@ -40,20 +48,5 @@ sub new {
   bless $self, $cls;
   $self
 }
-
-sub new_with_params {
-  my ($self, %params) = @_;
-  my %cur = %{ dclone $self };
-  @cur{keys %params} = values %params;
-  ref($self)->new(%cur)
-}
-
-has_ro account  => ();
-has_ro nick     => ();
-has_ro user     => ();
-has_ro host     => ();
-has_ro realname => ();
-has_ro is_away  => ( default  => 0 );
-has_ro is_oper  => ( default  => 0 );
 
 1;
