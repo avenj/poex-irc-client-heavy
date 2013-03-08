@@ -35,7 +35,6 @@ sub new {
 
   for my $opt (@optional, @bool) {
     $self->{$opt} = $params{$opt}
-      if defined $params{$opt}
   }
 
   bless $self, $cls;
@@ -50,10 +49,10 @@ sub new_with_params {
 }
 
 has_ro account  => ();
-has_ro nick     => ( required => 1 );
-has_ro user     => ( required => 1 );
-has_ro host     => ( required => 1 );
-has_ro realname => ( required => 1 );
+has_ro nick     => ();
+has_ro user     => ();
+has_ro host     => ();
+has_ro realname => ();
 has_ro is_away  => ( default  => 0 );
 has_ro is_oper  => ( default  => 0 );
 
