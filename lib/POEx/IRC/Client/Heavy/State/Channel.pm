@@ -1,37 +1,26 @@
 package POEx::IRC::Client::Heavy::State::Channel;
 use strictures 1;
 use Carp;
+use Role::Tiny::With;
 
-use Moo;
-use MooX::Types::MooseLike::Base ':all';
+use POEx::IRC::Client::Heavy::State::Struct;
+with 'POEx::IRC::Client::Heavy::Role::Clonable';
+
 use namespace::clean;
 
-## FIXME convert to State::Struct + Role::Clonable
+has_ro topic => ();
+has_ro name  => ();
+has_ro present => ( default => +{} );
 
-has name => (
-  required => 1,
-  is       => 'ro',
-);
-
-has present => (
-  is      => 'ro',
-  isa     => sub {
-    ref $_[0] eq 'HASH' or confess "$_[0] is not a HASH"
-  },
-  default => sub { +{} },
-);
-
-sub userlist {
-  keys $_[0]->present
+sub new {
+  my ($cls, %params) = @_;
+  confess "Expected a 'name' parameter" unless defined $params{name};
+  bless +{%params}, $cls
 }
 
-has topic => (
-  is  => 'ro',
-  isa => HasMethods[qw/ topic set_at set_by /],
-  predicate => 'has_topic',
-  writer    => 'set_topic',
-);
-
+sub userlist {
+  keys %{ $_[0]->present }
+}
 
 1;
 
