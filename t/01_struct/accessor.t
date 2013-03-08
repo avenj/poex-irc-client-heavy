@@ -28,7 +28,7 @@ use strict; use warnings FATAL => 'all';
 
 ## Basic readers.
 my $struct = TestAbleStruct->new;
-ok( !$struct->readable, 'empty readable ok' );
+ok( ! defined $struct->readable, 'empty readable ok' );
 cmp_ok( $struct->readable_def, 'eq', 'abc',
   'readable with default ok'
 );
@@ -52,7 +52,7 @@ cmp_ok( $struct->readable_def_code, 'eq', 'xyzdef',
 ## Basic writers.
 undef $struct;
 $struct = TestAbleStruct->new;
-ok( !$struct->writable, 'empty writable ok' );
+ok( ! defined $struct->writable, 'empty writable ok' );
 cmp_ok( $struct->writable_def, 'eq', 'foo',
   'writable with default ok'
 );
