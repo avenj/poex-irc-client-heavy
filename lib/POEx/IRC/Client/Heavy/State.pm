@@ -157,7 +157,7 @@ sub get_status_prefix {
 
   if ($prefix) {
     ## ->get_status_prefix($chan, $nick, '@%')
-    ## Returns first found
+    ## Returns first found (aka boolean true if found)
     for my $lookup (split '', $prefix) {
       return $lookup if grep {; $_ eq $lookup } @$pfx_arr;
     }

@@ -5,6 +5,8 @@ use Carp;
 
 use Storable 'dclone';
 
+use POEx::IRC::Client::Heavy::State::Struct;
+
 sub new {
   my ($cls, %params) = @_;
   my $self = +{};
@@ -47,12 +49,12 @@ sub new_with_params {
   ref($self)->new(%cur)
 }
 
-sub account  { $_[0]->{account} }
-sub nick     { $_[0]->{nick}    }
-sub user     { $_[0]->{user}    }
-sub host     { $_[0]->{host}    }
-sub realname { $_[0]->{realname} }
-sub is_away  { $_[0]->{is_away} // 0 }
-sub is_oper  { $_[0]->{is_oper} // 0 }
+has_ro account  => ();
+has_ro nick     => ( required => 1 );
+has_ro user     => ( required => 1 );
+has_ro host     => ( required => 1 );
+has_ro realname => ( required => 1 );
+has_ro is_away  => ( default  => 0 );
+has_ro is_oper  => ( default  => 0 );
 
 1;
