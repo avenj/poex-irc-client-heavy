@@ -2,12 +2,17 @@ package POEx::IRC::Client::Heavy::State;
 
 use 5.10.1;
 use Moo;
-use Carp 'carp', 'confess';
+use MooX::Types::MooseLike::Base ':all';
 
+use Carp;
 use Scalar::Util 'weaken';
 
 use IRC::Toolkit;
 
+use namespace::clean;
+
+## FIXME ETOOMUCHMAGIC, use State:: classes instead
+##  these have various overloads . . .
 use MooX::Struct -rw,
   Channel => [ qw/
     name
@@ -32,20 +37,20 @@ use MooX::Struct -rw,
   / ],
 ;
 
-## Factory method for subclasses.
-sub _create_struct {
+sub create_struct {
+  ## Factory method to make it easier for subclasses to build ::Structs
   my ($self, $type) = splice @_, 0, 2;
   my $obj;
   for (lc $type) {
-    $obj = Channel->new(@_)  when 'channel';
-    $obj = Topic->new(@_)    when 'topic';
-    $obj = User->new(@_)     when 'user';
+    $obj = Channel->new(@_)   when 'channel';
+    $obj = Topic->new(@_)     when 'topic';
+    $obj = User->new(@_)      when 'user';
+    $obj = parse_isupport(@_) when 'isupport';
     confess "cannot create struct - unknown type $type"
   }
   $obj
 }
 
-## String-type, ro, with writers.
 ##    nick_name
 ##    server_name
 has $_ => (
@@ -59,7 +64,6 @@ has $_ => (
   server_name 
 /;
 
-## HASH-type, ro, without writers.
 ##    _users
 ##    _chans
 ##    _capabs
@@ -87,7 +91,7 @@ has 'isupport' => (
 sub create_isupport {
   my ($self, @items) = @_;
   $self->_set_isupport(
-    parse_isupport(@items)
+    $self->create_struct( ISupport => @items )
   )
 }
 
@@ -100,8 +104,33 @@ sub casemap {
 
 with 'IRC::Toolkit::Role::CaseMap';
 
-
+## FIXME update_* methods need to work on immutable objs
 ## Channels
+sub update_channel {
+  my ($self, $channel, %params) = @_;
+  my $upper = $self->upper($channel);
+
+  my $struct;
+  if ($struct = $self->_chans->{$upper}) {
+    while (my ($key, $value) = each %params) {
+      $struct->$key( $value )
+    }
+  } else {
+    ## New channel.
+    $struct = Channel->new( name => $channel, %params );
+    $self->_chans->{$upper} = $struct
+  }
+
+  $struct
+}
+
+sub del_channel {
+  my ($self, $channel) = @_;
+  ## confess() if we don't know this channel:
+  $self->get_channel($channel);
+  delete $self->_chans->{ $self->upper($channel) }
+}
+
 sub get_channel {
   my ($self, $channel) = @_;
   confess "Expected a channel name" unless defined $channel;
@@ -127,6 +156,7 @@ sub get_status_prefix {
 
   if ($prefix) {
     ## ->get_status_prefix($chan, $nick, '@%')
+    ## Returns first found
     for my $lookup (split '', $prefix) {
       return $lookup if grep {; $_ eq $lookup } @$pfx_arr;
     }
@@ -150,7 +180,7 @@ sub update_user {
       $struct->$key( $value )
     }
   } else {
-    ## New struct.
+    ## New user.
     $struct = User->new( nick => $nick, %params );
     $self->_users->{$upper} = $struct;
   }
@@ -160,7 +190,7 @@ sub update_user {
 
 sub del_user {
   my ($self, $nick) = @_;
-  confess "Expected a nickname" unless defined $nick;
+  $self->get_user($nick);
   delete $self->_users->{ $self->upper($nick) }
 }
 
@@ -206,7 +236,7 @@ sub capabs {
 
 1;
 
-
+=pod
 
 FIXME this is the POD as extracted from Lite
 
@@ -282,5 +312,4 @@ B<set_by> is the topic's setter
 
 =back
 
-
-
+=cut
