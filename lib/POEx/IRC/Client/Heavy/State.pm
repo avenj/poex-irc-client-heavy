@@ -14,7 +14,7 @@ use IRC::Toolkit;
 
 use Module::Runtime 'use_module';
 
-use_module(@_) 
+use_module($_) 
   for map {; 'POEx::IRC::Client::Heavy::State::'.$_ } qw/
     Channel
     Topic
@@ -23,6 +23,12 @@ use_module(@_)
 /;
 
 use namespace::clean;
+
+=pod
+
+=for Pod::Coverage create_struct
+
+=cut
 
 sub create_struct {
   ## Factory method to make it easier for subclasses to build ::Structs
@@ -433,6 +439,14 @@ Returns the current L<IRC::Toolkit::ISupport> object.
 
 Boolean true if an L</isupport> object has been built.
 
+=head3 create_isupport
+
+Used internally by L<POEx::IRC::Client::Heavy> to reset the current
+L</isupport> object.
+
+Feeds parameters to L<IRC::Toolkit::ISupport> to build a new ISupport object
+and replaces the current L</isupport>.
+
 =head3 casemap
 
 Returns the IRC CASEMAPPING= value for the current server as seen by
@@ -556,6 +570,32 @@ Used internally by L<POEx::IRC::Client::Heavy>.
 Returns a L<Data::Perl::Collection::Array> containing deleted objects.
 
 =head2 User state
+
+=head3 update_user
+
+  $state->update_user( $nickname =>
+    %params
+  );
+
+Create or update a L<POEx::IRC::Client::Heavy::State::User> struct for a named
+user.
+
+Used internally by L<POEx::IRC::Client::Heavy>.
+
+=head3 get_user
+
+  $state->get_user( $nickname );
+
+Retrieves the current L<POEx::IRC::Client::Heavy::State::User> struct for 
+a named user.
+
+=head3 del_user
+
+  $state->del_user( $nickname );
+
+Delete the named user from the current state.
+
+Used internally by L<POEx::IRC::Client::Heavy>.
 
 =head1 AUTHOR
 
