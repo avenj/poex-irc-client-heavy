@@ -10,6 +10,12 @@ has_ro topic  => ();
 has_ro set_by => ();
 has_ro set_at => ( default => 0 );
 
+=pod
+
+=for Pod::Coverage new
+
+=cut
+
 sub new {
   my ($cls, %params) = @_;
   my @required = qw/ topic set_by /;

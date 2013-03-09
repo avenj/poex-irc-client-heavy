@@ -65,7 +65,7 @@ has isupport => (
   is        => 'ro',
   isa       => Object,
   writer    => '_set_isupport',
-  predicate => '_has_isupport',
+  predicate => 'has_isupport',
 );
 
 sub create_isupport {
@@ -77,7 +77,7 @@ sub create_isupport {
 
 sub casemap {
   my ($self) = @_;
-  return 'rfc1459' unless $self->_has_isupport;
+  return 'rfc1459' unless $self->has_isupport;
   $self->isupport->casemap || 'rfc1459'
 }
 
@@ -174,6 +174,24 @@ sub add_to_channel {
   }
 
   $chan_obj->present->{ $self->upper($nick) } = []
+}
+
+sub channel_user_list {
+  my ($self, $channel) = @_;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
+    carp "Not present on channel $channel";
+    return
+  }
+
+  my @list;
+  for my $nick (keys %{ $chan_obj->present }) {
+    my $user_obj = $self->get_user($nick);
+    push @list, $user_obj->nick
+  }
+
+  @list
 }
 
 sub del_from_channel {
@@ -360,17 +378,6 @@ Returns the client's current nickname.
 
 Returns the server's announced name.
 
-=head3 get_isupport
-
-  my $casemap = $irc->state->get_isupport('casemap');
-
-Returns ISUPPORT values, if they are available.
-
-If the value is a KEY=VALUE pair (e.g. 'MAXMODES=4'), the VALUE portion is
-returned.
-
-A value that is a simple boolean (e.g. 'CALLERID') will return '-1'.
-
 =head3 get_channel
 
   my $chan_st = $irc->state->get_channel($channame);
@@ -386,9 +393,6 @@ A HASH whose keys are the users present on the channel.
 
 If a user has status modes, the values are an ARRAY of status prefixes (f.ex,
 o => '@', v => '+', ...)
-
-=head4 status_prefix_for
-
 
 =head4 topic
 

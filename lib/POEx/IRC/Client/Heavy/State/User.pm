@@ -15,6 +15,12 @@ has_ro realname => ();
 has_ro is_away  => ( default  => 0 );
 has_ro is_oper  => ( default  => 0 );
 
+=pod
+
+=for Pod::Coverage new
+
+=cut
+
 sub new {
   my ($cls, %params) = @_;
 

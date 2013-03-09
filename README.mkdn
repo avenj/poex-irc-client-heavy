@@ -1,0 +1,43 @@
+# NAME
+
+POEx::IRC::Client::Heavy - Stateful IRCv3 client
+
+# SYNOPSIS
+
+FIXME
+
+# DESCRIPTION
+
+This is a mostly-IRCv3-compatible state-tracking subclass of 
+[POEx::IRC::Client::Lite](http://search.cpan.org/perldoc?POEx::IRC::Client::Lite).
+
+## IRCv3 compatibility
+
+Supported:
+
+__away-notify__
+
+__account-notify__
+
+__extended-join__
+
+__intents__
+
+__multi-prefix__
+
+__server-time__
+
+__MONITOR__
+
+
+
+__sasl__ and __tls__ are currently missing. TLS may be a challenge due to a lack of
+STARTTLS-compatible POE Filters/Components; input/patches welcome, of course.
+
+
+
+FIXME
+
+# AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>

@@ -13,6 +13,12 @@ has_ro topic => ();
 has_ro name  => ();
 has_ro present => ( default => +{} );
 
+=pod
+
+=for Pod::Coverage new
+
+=cut
+
 sub new {
   my ($cls, %params) = @_;
 
