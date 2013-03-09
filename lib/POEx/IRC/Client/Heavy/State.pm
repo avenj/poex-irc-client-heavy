@@ -282,6 +282,11 @@ sub get_status_prefix {
   join '', @$pfx_arr
 }
 
+sub get_status_mode {
+  my ($self, $channel, $nick, $mode) = @_;
+  ## FIXME like get_status_prefix but retrieve prefix modes from isupport
+  ##  map user's prefixes to modes and grep
+}
 
 ## Users
 sub update_user {
@@ -358,64 +363,132 @@ sub capabs {
 
 =pod
 
-FIXME this is the POD as extracted from Lite
+=head1 NAME
 
+=head1 SYNOPSIS
 
-=head2 State
+=head1 DESCRIPTION
 
-The State struct provides some very basic state information that can be
-queried via accessor methods:
+=head2 Client state
 
 =head3 nick_name
-
-  my $current_nick = $irc->state->nick_name;
 
 Returns the client's current nickname.
 
 =head3 server_name
 
-  my $current_serv = $irc->state->server_name;
-
 Returns the server's announced name.
+
+=head3 isupport
+
+Returns the current L<IRC::Toolkit::ISupport> object.
+
+=head3 has_isupport
+
+Boolean true if an L</isupport> object has been built.
+
+=head3 casemap
+
+Returns the IRC CASEMAPPING= value for the current server as seen by
+L</isupport>, or 'rfc1459' if we haven't parsed ISUPPORT yet.
+
+=head3 capabs
+
+  my @caps = $state->capabs;
+
+Returns the list of declared CAP capabilities.
+
+=head3 add_capabs
+
+  $state->add_capabs( @capabs );
+
+Adds declared CAP capabilities.
+
+=head3 clear_capabs
+
+  $state->clear_capabs( @capabs );
+
+Clears declared CAP capabilities.
+
+=head3 has_capabs
+
+  $state->has_capabs( @capabs );
+
+Given a list of CAP capabilities, returns the list of (lowercased) CAPs that
+were found in the L</capabs> list.
+
+=head2 Channel state
+
+=head3 list_channels
+
+Returns the list of currently-seen channels.
+
+=head3 update_channel
+
+  $state->update_channel( $chan_name =>
+    %params
+  );
+
+Update the L<POEx::IRC::Client::Heavy::State::Channel> struct for a named
+channel.
+
+=head3 update_channel_topic
+
+  $state->update_channel_topic( $chan_name =>
+    topic  => $string,
+    set_at => $ts,
+    set_by => $host,
+  );
+
+Update the L<POEx::IRC::Client::Heavy::State::Topic> struct for a named
+channel.
+
+=head3 del_channel
+
+  $state->del_channel($chan_name);
+
+Delete a named channel.
 
 =head3 get_channel
 
-  my $chan_st = $irc->state->get_channel($channame);
+  $state->get_channel($chan_name);
 
-If the channel is found, returns a Channel struct with the following accessor
-methods:
+Retrieve a named channel's L<POEx::IRC::Client::Heavy::State::Channel> struct.
 
-=head4 nicknames
+=head3 has_channel
 
-  my @users = keys %{ $chan_st->nicknames };
+  $state->has_channel($chan_name);
 
-A HASH whose keys are the users present on the channel.
+Boolean true if we are aware of this channel.
 
-If a user has status modes, the values are an ARRAY of status prefixes (f.ex,
-o => '@', v => '+', ...)
+=head3 channel_has_user
 
-=head4 topic
+  $state->channel_has_user($channel, $nick);
 
-  my $topic_st = $chan_st->topic;
-  my $topic_as_string = $topic_st->topic();
+Boolean true if the named user is present in the named channel's state.
 
-The Topic struct provides information about the current channel topic via
-accessors:
+=head3 add_to_channel
 
-=over
+  $state->add_to_channel($channel, $nick);
 
-=item *
+Add a given nickname to a channel's state.
 
-B<topic> is the actual topic string
+=head3 channel_user_list
 
-=item *
+  $state->channel_user_list($channel);
 
-B<set_at> is the timestamp of the topic change
+The list of known users on a named channel.
 
-=item *
+=head3 del_from_channel
 
-B<set_by> is the topic's setter
+  $state->del_from_channel($channel, $nick);
 
-=back
+Delete a named user from a channel's state.
+
+=head2 User state
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
 
 =cut
