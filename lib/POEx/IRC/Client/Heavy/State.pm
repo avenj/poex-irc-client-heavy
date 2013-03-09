@@ -102,7 +102,7 @@ sub update_channel {
   $self->_chans->{$upper}
 }
 
-sub update_topic {
+sub update_channel_topic {
   my ($self, $channel, %params) = @_;
   
   if (my $struct = $self->get_channel($channel)) {
@@ -135,13 +135,93 @@ sub get_channel {
   $self->_chans->{ $self->upper($channel) }
 }
 
+sub has_channel {
+  ## Same as get_channel, but a bit more natural to use.
+  my ($self, $channel) = @_;
+  $self->get_channel($channel)
+}
+
+sub channel_has_user {
+  my ($self, $channel, $nick) = @_;
+  confess "Expected a channel and nickname"
+    unless defined $nick;
+
+  if (my $chan_obj = $self->get_channel($channel)) {
+    return $chan_obj->present->{ $self->upper($nick) }
+  }
+
+  confess "Not present on channel $channel"
+}
+
+sub add_to_channel {
+  my ($self, $channel, $nick) = @_;
+  confess "Expected a channel and nickname"
+    unless defined $nick;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
+    carp "Not present on channel $channel";
+    return
+  }
+
+  if ($self->channel_has_user($channel, $nick)) {
+    carp "Channel $channel already has user $nick";
+    return
+  }
+
+  $chan_obj->present->{ $self->upper($nick) } = []
+}
+
+sub add_status_prefix {
+  my ($self, $channel, $nick, $prefix) = @_;
+  confess "Expected a channel, nickname, and prefix"
+    unless defined $prefix;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
+    carp "Not present on channel $channel"
+    return
+  }
+
+  unless ($self->channel_has_user($channel, $nick)) {
+    carp "User $nick not present on channel $channel";
+    return
+  }
+
+  my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
+  push @$pfxarr, $chr unless grep {; $_ eq $prefix } @$pfxarr;
+
+  $pfxarr
+}
+
+sub del_status_prefix {
+  my ($self, $channel, $nick, $prefix) = @_;
+  confess "Expected a channel, nickname, and prefix"
+    unless defined $prefix;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
+    carp "Not currently on $channel - cannot del prefix";
+    return
+  }
+
+  unless ($self->channel_has_user($channel, $nick)) {
+    carp "User $nick not present on channel $channel";
+    return
+  }
+
+  my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
+  $chan_obj->present->{ $self->upper($nick) } = 
+    [ grep {; $_ ne $chr } @$pfxarr ];
+}
+
 sub get_status_prefix {
   my ($self, $channel, $nick, $prefix) = @_;
   confess "Expected a channel and nickname"
-    unless defined $channel and defined $nick;
+    unless defined $nick;
 
-  my $chan_obj = $self->_chans->{ $self->upper($channel) };
-  unless (defined $chan_obj) {
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
     carp "Not currently on $channel - cannot retrieve prefix";
     return ''
   }
