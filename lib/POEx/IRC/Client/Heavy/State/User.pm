@@ -30,10 +30,7 @@ sub new {
       unless defined $params{$opt};
   }
 
-  my $self = +{%params};
-
-  bless $self, $cls;
-  $self
+  bless +{%params}, $cls;
 }
 
 1;

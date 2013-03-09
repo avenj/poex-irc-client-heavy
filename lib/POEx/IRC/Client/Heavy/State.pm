@@ -83,23 +83,20 @@ sub casemap {
 with 'IRC::Toolkit::Role::CaseMap';
 
 ## Channels
-## FIXME needs to work on immutable objs
-##  see User->new_with_params and update_user
 sub update_channel {
   my ($self, $channel, %params) = @_;
   my $upper = $self->upper($channel);
 
-  my $struct;
-  if ($struct = $self->_chans->{$upper}) {
-    while (my ($key, $value) = each %params) {
-      $struct->$key( $value )
-    }
+  if (my $struct = $self->_chans->{$upper}) {
+    $self->_chans->{$upper} = $struct->new_with_params(
+      %params
+    )
   } else {
-    ## New channel.
-    $struct = Channel->new( name => $channel, %params );
-    $self->_chans->{$upper} = $struct
+    $self->_chans->{$upper} = $self->create_struct( Channel =>
+      name => $channel,
+      %params
+    );
   }
-
   $struct
 }
 
@@ -154,7 +151,6 @@ sub update_user {
 
   if (my $struct = $self->_users->{$upper}) {
     $self->_users->{$upper} = $struct->new_with_params(
-      nick => $nick,
       %params
     );
   } else {
