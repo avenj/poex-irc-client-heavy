@@ -84,6 +84,10 @@ sub casemap {
 with 'IRC::Toolkit::Role::CaseMap';
 
 ## Channels
+sub list_channels {
+  map {; $_->name } values %{ $_[0]->_chans }
+}
+
 sub update_channel {
   my ($self, $channel, %params) = @_;
   my $upper = $self->upper($channel);
@@ -111,7 +115,7 @@ sub update_channel_topic {
     if ($topic = $struct->topic) {
       $topic = $topic->new_with_params(%params)
     } else {
-      $topic = Topic->new(%params)
+      $topic = $self->create_struct( Topic => %params );
     }
 
     return $self->update_channel( $channel =>
@@ -172,6 +176,22 @@ sub add_to_channel {
   $chan_obj->present->{ $self->upper($nick) } = []
 }
 
+sub del_from_channel {
+  my ($self, $channel, $nick) = @_;
+  confess "Expected a channel and nickname"
+    unless defined $nick;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->get_channel($channel)) {
+    carp "Not present on channel $channel";
+    return
+  }
+
+  return unless $self->channel_has_user($channel, $nick);
+
+  delete $chan_obj->present->{ $self->upper($nick) }
+}
+
 sub add_status_prefix {
   my ($self, $channel, $nick, $prefix) = @_;
   confess "Expected a channel, nickname, and prefix"
@@ -179,7 +199,7 @@ sub add_status_prefix {
 
   my $chan_obj;
   unless ($chan_obj = $self->get_channel($channel)) {
-    carp "Not present on channel $channel"
+    carp "Not present on channel $channel";
     return
   }
 
@@ -189,7 +209,7 @@ sub add_status_prefix {
   }
 
   my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
-  push @$pfxarr, $chr unless grep {; $_ eq $prefix } @$pfxarr;
+  push @$pfxarr, $prefix unless grep {; $_ eq $prefix } @$pfxarr;
 
   $pfxarr
 }
@@ -212,7 +232,7 @@ sub del_status_prefix {
 
   my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
   $chan_obj->present->{ $self->upper($nick) } = 
-    [ grep {; $_ ne $chr } @$pfxarr ];
+    [ grep {; $_ ne $prefix } @$pfxarr ];
 }
 
 sub get_status_prefix {
@@ -268,7 +288,12 @@ sub update_user {
 sub del_user {
   my ($self, $nick) = @_;
   $self->get_user($nick);
-  delete $self->_users->{ $self->upper($nick) }
+  my $upper = $self->upper($nick);
+  for my $chan ($self->list_channels) {
+    $self->del_from_channel($chan, $nick)
+      if $self->channel_has_user($chan, $nick);
+  }
+  delete $self->_users->{$upper}
 }
 
 sub get_user {
