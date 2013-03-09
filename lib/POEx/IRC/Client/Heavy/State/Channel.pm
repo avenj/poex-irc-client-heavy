@@ -3,6 +3,8 @@ use strictures 1;
 use Carp;
 use Scalar::Util 'blessed';
 
+use Data::Perl 'hash';
+
 use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
 with 'POEx::IRC::Client::Heavy::Role::Clonable';
@@ -11,7 +13,7 @@ use namespace::clean;
 
 has_ro topic => ();
 has_ro name  => ();
-has_ro present => ( default => +{} );
+has_ro present => ( default => hash );
 
 =pod
 
@@ -32,6 +34,12 @@ sub new {
       confess "$topic missing required method $meth"
         unless $topic->can($meth)
     }
+  }
+
+  if (defined $params{present}) {
+    my $present = $params{present};
+    confess "Expected a Data::Perl::Collection::Hash"
+      unless blessed $present;
   }
 
   bless +{%params}, $cls
@@ -68,7 +76,8 @@ Returns the channel's name (as we saw it at join-time).
 
 =head2 present
 
-A HASH mapping currently-present users to their status prefixes, if any.
+A L<Data::Perl::Collection::Hash> mapping currently-present users 
+to their status prefixes, if any.
 
 =head2 userlist
 

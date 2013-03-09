@@ -180,6 +180,7 @@ sub add_to_channel {
     return
   }
 
+  ## FIXME use PresentUser struct with a Data::Perl array
   $chan_obj->present->set( $self->upper($nick) => [] );
   $chan_obj->present->get( $self->upper($nick) )
 }
@@ -302,9 +303,7 @@ sub update_user {
 
   if (my $struct = $self->get_user($nick)) {
     $self->_users->set( $upper =>
-      $struct->new_with_params(
-        %params
-      )
+      $struct->new_with_params( %params )
     )
   } else {
     $self->_users->set( $upper =>
@@ -321,10 +320,12 @@ sub del_user {
   my ($self, $nick) = @_;
   $self->get_user($nick);
   my $upper = $self->upper($nick);
+
   for my $chan ($self->list_channels) {
     $self->del_from_channel($chan, $nick)
       if $self->channel_has_user($chan, $nick);
   }
+
   $self->_users->delete($upper)
 }
 

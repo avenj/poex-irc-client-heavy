@@ -11,7 +11,7 @@ my $chan = POEx::IRC::Client::Heavy::State::Channel->new(
 
 cmp_ok( $chan->name, 'eq', '#mychan', 'name() ok' );
 ok( ! defined $chan->topic, 'no topic() set' );
-is_deeply( $chan->present, +{}, 'present() is empty' );
+ok( $chan->present->keys->is_empty, 'present->keys->is_empty() ok' );
 
 
 my $topic = POEx::IRC::Client::Heavy::State::Topic->new(
