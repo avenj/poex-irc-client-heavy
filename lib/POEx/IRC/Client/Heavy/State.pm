@@ -2,10 +2,15 @@ package POEx::IRC::Client::Heavy::State;
 
 use 5.10.1;
 use Moo;
-use MooX::Types::MooseLike::Base ':all';
+use MooX::Types::MooseLike::Base qw/
+  HashRef
+  Object
+  Str
+/;
 
 use Carp;
-use Scalar::Util 'weaken';
+
+use Data::Perl 'array', 'hash';
 
 use IRC::Toolkit;
 
@@ -32,33 +37,6 @@ sub create_struct {
   $obj
 }
 
-##    nick_name
-##    server_name
-has $_ => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => Str,
-  writer  => '_set_'.$_,
-  default => sub { '' },
-) for qw/ 
-  nick_name 
-  server_name 
-/;
-
-##    _users
-##    _chans
-##    _capabs
-has $_ => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
-) for qw/ 
-  _users 
-  _chans
-  _capabs
-/;
-
 has isupport => (
   ## Should be created via create_isupport
   ##  (after accumulating 005s)
@@ -83,9 +61,37 @@ sub casemap {
 
 with 'IRC::Toolkit::Role::CaseMap';
 
+##    nick_name
+##    server_name
+has $_ => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => Str,
+  writer  => '_set_'.$_,
+  default => sub { '' },
+) for qw/ 
+  nick_name 
+  server_name 
+/;
+
+##    _users
+##    _chans
+##    _capabs
+has $_ => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  default => sub { hash() },
+) for qw/ 
+  _users 
+  _chans
+  _capabs
+/;
+
 ## Channels
 sub list_channels {
-  map {; $_->name } values %{ $_[0]->_chans }
+  my ($self) = @_;
+  $self->_chans->values->map(sub { $_->name })->all
 }
 
 sub update_channel {
@@ -93,17 +99,18 @@ sub update_channel {
   my $upper = $self->upper($channel);
 
   if (my $struct = $self->get_channel($channel)) {
-    $self->_chans->{$upper} = $struct->new_with_params(
-      %params
+    $self->_chans->set( $upper => 
+      $struct->new_with_params( %params )
     )
   } else {
-    $self->_chans->{$upper} = $self->create_struct( Channel =>
-      name => $channel,
-      %params
-    );
+    $self->_chans->set( $upper =>
+      $self->create_struct( Channel =>
+        name => $channel, %params
+      )
+    )
   }
 
-  $self->_chans->{$upper}
+  $self->_chans->get($upper)
 }
 
 sub update_channel_topic {
@@ -130,13 +137,13 @@ sub del_channel {
   my ($self, $channel) = @_;
   ## confess() if we don't know this channel:
   $self->get_channel($channel);
-  delete $self->_chans->{ $self->upper($channel) }
+  $self->_chans->delete( $self->upper($channel) )
 }
 
 sub get_channel {
   my ($self, $channel) = @_;
   confess "Expected a channel name" unless defined $channel;
-  $self->_chans->{ $self->upper($channel) }
+  $self->_chans->get( $self->upper($channel) )
 }
 
 sub has_channel {
@@ -151,7 +158,7 @@ sub channel_has_user {
     unless defined $nick;
 
   if (my $chan_obj = $self->get_channel($channel)) {
-    return $chan_obj->present->{ $self->upper($nick) }
+    return $chan_obj->present->get( $self->upper($nick) )
   }
 
   confess "Not present on channel $channel"
@@ -173,7 +180,8 @@ sub add_to_channel {
     return
   }
 
-  $chan_obj->present->{ $self->upper($nick) } = []
+  $chan_obj->present->set( $self->upper($nick) => [] );
+  $chan_obj->present->get( $self->upper($nick) )
 }
 
 sub channel_user_list {
@@ -185,13 +193,9 @@ sub channel_user_list {
     return
   }
 
-  my @list;
-  for my $nick (keys %{ $chan_obj->present }) {
-    my $user_obj = $self->get_user($nick);
-    push @list, $user_obj->nick
-  }
-
-  @list
+  $chan_obj->present->keys->map(sub {
+      $self->get_user($_)->nick
+  })->all
 }
 
 sub del_from_channel {
@@ -207,7 +211,7 @@ sub del_from_channel {
 
   return unless $self->channel_has_user($channel, $nick);
 
-  delete $chan_obj->present->{ $self->upper($nick) }
+  $chan_obj->present->delete( $self->upper($nick) )
 }
 
 sub add_status_prefix {
@@ -226,7 +230,7 @@ sub add_status_prefix {
     return
   }
 
-  my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
+  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
   push @$pfxarr, $prefix unless grep {; $_ eq $prefix } @$pfxarr;
 
   $pfxarr
@@ -248,9 +252,11 @@ sub del_status_prefix {
     return
   }
 
-  my $pfxarr = $chan_obj->present->{ $self->upper($nick) };
-  $chan_obj->present->{ $self->upper($nick) } = 
-    [ grep {; $_ ne $prefix } @$pfxarr ];
+  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
+  ## FIXME use PresentUser struct with a Data::Perl array
+  $chan_obj->present->set( $self->upper($nick) =>
+    [ grep {; $_ ne $prefix } @$pfxarr ]
+  );
 }
 
 sub get_status_prefix {
@@ -264,8 +270,8 @@ sub get_status_prefix {
     return ''
   }
 
-  my $pfx_arr = $chan_obj->present->{$nick};
-  unless (defined $pfx_arr) {
+  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
+  unless (defined $pfxarr) {
     carp "User not present on $channel - $nick";
     return ''
   }
@@ -274,12 +280,12 @@ sub get_status_prefix {
     ## ->get_status_prefix($chan, $nick, '@%')
     ## Returns first found (aka boolean true if found)
     for my $lookup (split '', $prefix) {
-      return $lookup if grep {; $_ eq $lookup } @$pfx_arr;
+      return $lookup if grep {; $_ eq $lookup } @$pfxarr;
     }
     return
   }
 
-  join '', @$pfx_arr
+  join '', @$pfxarr
 }
 
 sub get_status_mode {
@@ -295,17 +301,20 @@ sub update_user {
   my $upper = $self->upper($nick);
 
   if (my $struct = $self->get_user($nick)) {
-    $self->_users->{$upper} = $struct->new_with_params(
-      %params
-    );
+    $self->_users->set( $upper =>
+      $struct->new_with_params(
+        %params
+      )
+    )
   } else {
-    $self->_users->{$upper} = $self->create_struct( User =>
-      nick => $nick,
-      %params
-    );
+    $self->_users->set( $upper =>
+      $self->create_struct( User =>
+        nick => $nick, %params
+      )
+    )
   }
 
-  $self->_users->{$upper}
+  $self->_users->get($upper)
 }
 
 sub del_user {
@@ -316,48 +325,49 @@ sub del_user {
     $self->del_from_channel($chan, $nick)
       if $self->channel_has_user($chan, $nick);
   }
-  delete $self->_users->{$upper}
+  $self->_users->delete($upper)
 }
 
 sub get_user {
   my ($self, $nick) = @_;
   confess "Expected a nickname" unless defined $nick;
-  $self->_users->{ $self->upper($nick) }
+  $self->_users->get( $self->upper($nick) )
 }
 
 
 ## CAP
 sub add_capabs {
   my ($self, @cap) = @_;
-  @cap = map {; lc $_ } @cap;
-  for my $thiscap (@cap) {
-    $self->_capabs->{$thiscap} = 1
+
+  for my $thiscap (array(@cap)->map(sub { lc })->all) {
+    $self->_capabs->set($thiscap => 1)
   }
-  @cap
+
+  $self->_capabs->keys->all
 }
 
 sub clear_capabs {
   my ($self, @cap) = @_;
-  my @result;
-  for my $thiscap (map {; lc $_ } @cap) {
-    push @result, delete $self->_capabs->{$thiscap};
-  }
-  @result
+
+  $self->_capabs->delete(
+    array(@cap)
+     ->map(sub { lc })
+     ->all
+  )
 }
 
 sub has_capabs {
   my ($self, @cap) = @_;
-  my @result;
-  for my $thiscap (map {; lc $_ } @cap) {
-    push @result, $thiscap if exists $self->_capabs->{$thiscap};
-  }
-  @result
+
+  array(@cap)
+   ->map(sub { lc })
+   ->grep(sub {
+       $self->_capabs->exists($_)
+     })
+   ->all
 }
 
-sub capabs {
-  my ($self) = @_;
-  keys %{ $self->_capabs }
-}
+sub capabs { $_[0]->_capabs->keys }
 
 1;
 
@@ -365,9 +375,27 @@ sub capabs {
 
 =head1 NAME
 
+POEx::IRC::Client::Heavy::State - Current IRC state
+
 =head1 SYNOPSIS
 
+Normally used via L<POEx::IRC::Client::Heavy>:
+
+  my $state = $irc->state;
+  my $nick  = $state->nick_name;
+
 =head1 DESCRIPTION
+
+This is the state tracker for L<POEx::IRC::Client::Heavy>, providing access to
+(usually immutable) objects describing the currently-visible state.
+
+See also:
+
+L<POEx::IRC::Client::Heavy::State::User>
+
+L<POEx::IRC::Client::Heavy::State::Channel>
+
+L<POEx::IRC::Client::Heavy::State::Topic>
 
 =head2 Client state
 
@@ -404,11 +432,15 @@ Returns the list of declared CAP capabilities.
 
 Adds declared CAP capabilities.
 
+Used internally by L<POEx::IRC::Client::Heavy>.
+
 =head3 clear_capabs
 
   $state->clear_capabs( @capabs );
 
 Clears declared CAP capabilities.
+
+Used internally by L<POEx::IRC::Client::Heavy>.
 
 =head3 has_capabs
 
@@ -432,6 +464,8 @@ Returns the list of currently-seen channels.
 Update the L<POEx::IRC::Client::Heavy::State::Channel> struct for a named
 channel.
 
+Used internally by L<POEx::IRC::Client::Heavy>.
+
 =head3 update_channel_topic
 
   $state->update_channel_topic( $chan_name =>
@@ -443,11 +477,15 @@ channel.
 Update the L<POEx::IRC::Client::Heavy::State::Topic> struct for a named
 channel.
 
+Used internally by L<POEx::IRC::Client::Heavy>.
+
 =head3 del_channel
 
   $state->del_channel($chan_name);
 
 Delete a named channel.
+
+Used internally by L<POEx::IRC::Client::Heavy>.
 
 =head3 get_channel
 
@@ -473,6 +511,8 @@ Boolean true if the named user is present in the named channel's state.
 
 Add a given nickname to a channel's state.
 
+Used internally by L<POEx::IRC::Client::Heavy>.
+
 =head3 channel_user_list
 
   $state->channel_user_list($channel);
@@ -484,6 +524,10 @@ The list of known users on a named channel.
   $state->del_from_channel($channel, $nick);
 
 Delete a named user from a channel's state.
+
+Used internally by L<POEx::IRC::Client::Heavy>.
+
+Returns a L<Data::Perl::Collection::Array> containing deleted objects.
 
 =head2 User state
 
