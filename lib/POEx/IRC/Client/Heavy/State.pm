@@ -9,6 +9,9 @@ use Scalar::Util 'weaken';
 
 use IRC::Toolkit;
 
+use POEx::IRC::Client::Heavy::State::Channel;
+use POEx::IRC::Client::Heavy::State::Topic;
+use POEx::IRC::Client::Heavy::State::User;
 sub Channel () { 'POEx::IRC::Client::Heavy::State::Channel' }
 sub Topic   () { 'POEx::IRC::Client::Heavy::State::Topic'   }
 sub User    () { 'POEx::IRC::Client::Heavy::State::User'    }
@@ -56,8 +59,7 @@ has $_ => (
   _capabs
 /;
 
-
-has 'isupport' => (
+has isupport => (
   ## Should be created via create_isupport
   ##  (after accumulating 005s)
   is        => 'ro',
@@ -73,7 +75,6 @@ sub create_isupport {
   )
 }
 
-
 sub casemap {
   my ($self) = @_;
   return 'rfc1459' unless $self->_has_isupport;
@@ -87,7 +88,7 @@ sub update_channel {
   my ($self, $channel, %params) = @_;
   my $upper = $self->upper($channel);
 
-  if (my $struct = $self->_chans->{$upper}) {
+  if (my $struct = $self->get_channel($channel)) {
     $self->_chans->{$upper} = $struct->new_with_params(
       %params
     )
@@ -97,7 +98,28 @@ sub update_channel {
       %params
     );
   }
-  $struct
+
+  $self->_chans->{$upper}
+}
+
+sub update_topic {
+  my ($self, $channel, %params) = @_;
+  
+  if (my $struct = $self->get_channel($channel)) {
+    my $topic;
+
+    if ($topic = $struct->topic) {
+      $topic = $topic->new_with_params(%params)
+    } else {
+      $topic = Topic->new(%params)
+    }
+
+    return $self->update_channel( $channel =>
+      topic => $topic,
+    )
+  }
+
+  confess "Cannot update_topic for unknown channel $channel"
 }
 
 sub del_channel {
@@ -149,7 +171,7 @@ sub update_user {
   my ($self, $nick, %params) = @_;
   my $upper = $self->upper($nick);
 
-  if (my $struct = $self->_users->{$upper}) {
+  if (my $struct = $self->get_user($nick)) {
     $self->_users->{$upper} = $struct->new_with_params(
       %params
     );
