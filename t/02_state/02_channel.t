@@ -12,7 +12,7 @@ my $chan = POEx::IRC::Client::Heavy::State::Channel->new(
 cmp_ok( $chan->name, 'eq', '#mychan', 'name() ok' );
 ok( ! defined $chan->topic, 'no topic() set' );
 ok( $chan->present->keys->is_empty, 'present->keys->is_empty() ok' );
-
+ok( !$chan->userlist, 'userlist() is empty' );
 
 my $topic = POEx::IRC::Client::Heavy::State::Topic->new(
   topic  => 'My topic',
@@ -30,6 +30,10 @@ cmp_ok( $with_topic->name, 'eq', '#mychan', 'name() preserved' );
 cmp_ok( $with_topic->topic->topic, 'eq', 'My topic', 'topic->topic() ok' );
 cmp_ok( $with_topic->topic->set_at, 'eq', '1234', 'topic->set_at() ok' );
 
+$with_topic->present->set(somenick => 1);
+is_deeply( [ $with_topic->userlist ], [ 'somenick' ],
+  'userlist() has one user'
+);
 
 dies_ok(sub {
     POEx::IRC::Client::Heavy::State::Channel->new
@@ -43,5 +47,10 @@ dies_ok(sub {
   'dies with invalid topic obj'
 );
 
+dies_ok(sub {
+    $with_topic->new_with_params(present => '')
+  },
+  'dies with invalid present obj'
+);
 
 done_testing;

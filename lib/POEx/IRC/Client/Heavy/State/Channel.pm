@@ -46,7 +46,7 @@ sub new {
 }
 
 sub userlist {
-  keys %{ $_[0]->present }
+  $_[0]->present->keys->all
 }
 
 1;
