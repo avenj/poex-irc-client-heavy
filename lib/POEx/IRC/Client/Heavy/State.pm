@@ -1,39 +1,50 @@
 package POEx::IRC::Client::Heavy::State;
-
+use Carp;
+use strictures 1;
 use 5.10.1;
 use Moo;
 use MooX::Types::MooseLike::Base qw/
-  HashRef
   Object
   Str
 /;
-
-use Carp;
 
 use Data::Perl 'array', 'hash';
 
 use IRC::Toolkit;
 
-use POEx::IRC::Client::Heavy::State::Channel;
-use POEx::IRC::Client::Heavy::State::Topic;
-use POEx::IRC::Client::Heavy::State::User;
-sub Channel () { 'POEx::IRC::Client::Heavy::State::Channel' }
-sub Topic   () { 'POEx::IRC::Client::Heavy::State::Topic'   }
-sub User    () { 'POEx::IRC::Client::Heavy::State::User'    }
+use Module::Runtime 'use_module';
+
+use_module(@_) 
+  for map {; 'POEx::IRC::Client::Heavy::State::'.$_ } qw/
+    Channel
+    Topic
+    User
+    PresentUser
+/;
 
 use namespace::clean;
 
 sub create_struct {
   ## Factory method to make it easier for subclasses to build ::Structs
   my ($self, $type) = splice @_, 0, 2;
-  my $obj;
+
+  my ($class, $obj);
   for (lc $type) {
-    $obj = Channel->new(@_)   when 'channel';
-    $obj = Topic->new(@_)     when 'topic';
-    $obj = User->new(@_)      when 'user';
+    $class = 'Channel'     when 'channel';
+    $class = 'Topic'       when 'topic';
+    $class = 'User'        when 'user';
+    $class = 'PresentUser' when 'presentuser';
+
     $obj = parse_isupport(@_) when 'isupport';
+
     confess "cannot create struct - unknown type $type"
   }
+
+  if (defined $class) {
+    $obj = 
+      (join '::', 'POEx::IRC::Client::Heavy::State', $class)->new(@_)
+  }
+
   $obj
 }
 
@@ -80,8 +91,7 @@ has $_ => (
 has $_ => (
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
-  default => sub { hash() },
+  default => sub { hash },
 ) for qw/ 
   _users 
   _chans
@@ -89,7 +99,7 @@ has $_ => (
 /;
 
 ## Channels
-sub list_channels {
+sub channel_list {
   my ($self) = @_;
   $self->_chans->values->map(sub { $_->name })
 }
@@ -180,8 +190,9 @@ sub add_to_channel {
     return
   }
 
-  ## FIXME use PresentUser struct with a Data::Perl array
-  $chan_obj->present->set( $self->upper($nick) => [] );
+  $chan_obj->present->set( $self->upper($nick) =>
+    $self->create_struct( PresentUser => () )
+  );
   $chan_obj->present->get( $self->upper($nick) )
 }
 
@@ -220,21 +231,27 @@ sub add_status_prefix {
   confess "Expected a channel, nickname, and prefix"
     unless defined $prefix;
 
+  my $upper   = $self->upper($nick);
+
   my $chan_obj;
   unless ($chan_obj = $self->get_channel($channel)) {
     carp "Not present on channel $channel";
     return
   }
 
-  unless ($self->channel_has_user($channel, $nick)) {
+  unless ($self->channel_has_user($channel, $upper)) {
     carp "User $nick not present on channel $channel";
     return
   }
 
-  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
-  push @$pfxarr, $prefix unless grep {; $_ eq $prefix } @$pfxarr;
+  my $current = $chan_obj->present->get($upper);
+  $chan_obj->present->set( $upper =>
+    $current->new_with_params(
+      prefixes => [ $current->prefixes->all, $prefix ],
+    )
+  ) unless $current->prefixes->grep(sub { $_ eq $prefix })->all;
 
-  $pfxarr
+  $chan_obj->present->get($upper)->prefixes
 }
 
 sub del_status_prefix {
@@ -242,22 +259,27 @@ sub del_status_prefix {
   confess "Expected a channel, nickname, and prefix"
     unless defined $prefix;
 
+  my $upper   = $self->upper($nick);
+
   my $chan_obj;
   unless ($chan_obj = $self->get_channel($channel)) {
     carp "Not currently on $channel - cannot del prefix";
     return
   }
 
-  unless ($self->channel_has_user($channel, $nick)) {
+  unless ($self->channel_has_user($channel, $upper)) {
     carp "User $nick not present on channel $channel";
     return
   }
 
-  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
-  ## FIXME use PresentUser struct with a Data::Perl array
-  $chan_obj->present->set( $self->upper($nick) =>
-    [ grep {; $_ ne $prefix } @$pfxarr ]
+  my $current = $chan_obj->present->get($upper);
+  $chan_obj->present->set( $upper =>
+    $current->new_with_params(
+      prefixes => [ $current->prefixes->grep(sub { $_ ne $prefix })->all ],
+    )
   );
+
+  $chan_obj->present->get($upper)->prefixes
 }
 
 sub get_status_prefix {
@@ -268,25 +290,23 @@ sub get_status_prefix {
   my $chan_obj;
   unless ($chan_obj = $self->get_channel($channel)) {
     carp "Not currently on $channel - cannot retrieve prefix";
-    return ''
+    return
   }
 
-  my $pfxarr = $chan_obj->present->get( $self->upper($nick) );
-  unless (defined $pfxarr) {
+  my $puser = $chan_obj->present->get( $self->upper($nick) );
+  unless (defined $puser) {
     carp "User not present on $channel - $nick";
-    return ''
+    return
   }
 
   if ($prefix) {
-    ## ->get_status_prefix($chan, $nick, '@%')
-    ## Returns first found (aka boolean true if found)
     for my $lookup (split '', $prefix) {
-      return $lookup if grep {; $_ eq $lookup } @$pfxarr;
+      return $lookup if $puser->prefixes->grep(sub { $_ eq $lookup })->all;
     }
     return
   }
 
-  join '', @$pfxarr
+  $puser->prefixes->join('')
 }
 
 sub get_status_mode {
@@ -321,7 +341,7 @@ sub del_user {
   $self->get_user($nick);
   my $upper = $self->upper($nick);
 
-  for my $chan ($self->list_channels) {
+  for my $chan ($self->channel_list) {
     $self->del_from_channel($chan, $nick)
       if $self->channel_has_user($chan, $nick);
   }
@@ -351,18 +371,18 @@ sub clear_capabs {
   my ($self, @cap) = @_;
 
   $self->_capabs->delete(
-    array(@cap)
-     ->map( sub { lc } )
-     ->all
+    array(@cap)->map(sub { lc })->all
   )
 }
 
 sub has_capabs {
   my ($self, @cap) = @_;
 
-  array(@cap)
-   ->map( sub { lc } )
-   ->grep( sub { $self->_capabs->exists($_) } )
+  array(@cap)->map( 
+    sub { lc } 
+  )->grep( 
+    sub { $self->_capabs->exists($_) } 
+  )
 }
 
 sub capabs { $_[0]->_capabs->keys }
@@ -450,11 +470,11 @@ were found in the L</capabs> list as a L<Data::Perl::Collection::Array>.
 
 =head2 Channel state
 
-=head3 list_channels
+=head3 channel_list
 
-  my @chans = $state->list_channels->all;
+  my @chans = $state->channel_list->all;
 
-  my @matching = $state->list_channels->grep(
+  my @matching = $state->channel_list->grep(
     sub { $_ =~ $regex }
   )->all;
 
