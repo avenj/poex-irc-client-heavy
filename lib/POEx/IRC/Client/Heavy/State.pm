@@ -91,7 +91,7 @@ has $_ => (
 ## Channels
 sub list_channels {
   my ($self) = @_;
-  $self->_chans->values->map(sub { $_->name })->all
+  $self->_chans->values->map(sub { $_->name })
 }
 
 sub update_channel {
@@ -344,7 +344,7 @@ sub add_capabs {
     $self->_capabs->set($thiscap => 1)
   }
 
-  $self->_capabs->keys->all
+  $self->_capabs->keys
 }
 
 sub clear_capabs {
@@ -352,7 +352,7 @@ sub clear_capabs {
 
   $self->_capabs->delete(
     array(@cap)
-     ->map(sub { lc })
+     ->map( sub { lc } )
      ->all
   )
 }
@@ -361,11 +361,8 @@ sub has_capabs {
   my ($self, @cap) = @_;
 
   array(@cap)
-   ->map(sub { lc })
-   ->grep(sub {
-       $self->_capabs->exists($_)
-     })
-   ->all
+   ->map( sub { lc } )
+   ->grep( sub { $self->_capabs->exists($_) } )
 }
 
 sub capabs { $_[0]->_capabs->keys }
@@ -423,9 +420,10 @@ L</isupport>, or 'rfc1459' if we haven't parsed ISUPPORT yet.
 
 =head3 capabs
 
-  my @caps = $state->capabs;
+  my @caps = $state->capabs->all;
 
-Returns the list of declared CAP capabilities.
+Returns the list of declared CAP capabilities as a
+L<Data::Perl::Collection::Array>.
 
 =head3 add_capabs
 
@@ -445,16 +443,23 @@ Used internally by L<POEx::IRC::Client::Heavy>.
 
 =head3 has_capabs
 
-  $state->has_capabs( @capabs );
+  my @capabs = $state->has_capabs(@capabs)->all;
 
 Given a list of CAP capabilities, returns the list of (lowercased) CAPs that
-were found in the L</capabs> list.
+were found in the L</capabs> list as a L<Data::Perl::Collection::Array>.
 
 =head2 Channel state
 
 =head3 list_channels
 
-Returns the list of currently-seen channels.
+  my @chans = $state->list_channels->all;
+
+  my @matching = $state->list_channels->grep(
+    sub { $_ =~ $regex }
+  )->all;
+
+Returns the list of currently-seen channels as a
+L<Data::Perl::Collection::Array>.
 
 =head3 update_channel
 
