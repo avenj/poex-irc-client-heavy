@@ -12,7 +12,7 @@ my $chan = POEx::IRC::Client::Heavy::State::Channel->new(
 cmp_ok( $chan->name, 'eq', '#mychan', 'name() ok' );
 ok( ! defined $chan->topic, 'no topic() set' );
 ok( $chan->present->keys->is_empty, 'present->keys->is_empty() ok' );
-ok( !$chan->userlist, 'userlist() is empty' );
+ok( !$chan->userlist->all, 'userlist() is empty' );
 
 my $topic = POEx::IRC::Client::Heavy::State::Topic->new(
   topic  => 'My topic',
@@ -30,9 +30,13 @@ cmp_ok( $with_topic->name, 'eq', '#mychan', 'name() preserved' );
 cmp_ok( $with_topic->topic->topic, 'eq', 'My topic', 'topic->topic() ok' );
 cmp_ok( $with_topic->topic->set_at, 'eq', '1234', 'topic->set_at() ok' );
 
-$with_topic->present->set(somenick => 1);
-is_deeply( [ $with_topic->userlist ], [ 'somenick' ],
+ok( $with_topic->present->set(somenick => 1), 'present->set() 1' );
+is_deeply( [ $with_topic->userlist->all ], [ 'somenick' ],
   'userlist() has one user'
+);
+ok( $with_topic->present->set(another => 1), 'present->set() 2' );
+is_deeply( [ $with_topic->userlist->sort->all ], [ qw/another somenick/ ],
+  'userlist() has two users'
 );
 
 dies_ok(sub {

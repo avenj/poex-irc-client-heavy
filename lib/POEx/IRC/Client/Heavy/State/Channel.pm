@@ -46,7 +46,7 @@ sub new {
 }
 
 sub userlist {
-  $_[0]->present->keys->all
+  $_[0]->present->keys
 }
 
 1;
@@ -81,7 +81,8 @@ to their status prefixes, if any.
 
 =head2 userlist
 
-Returns the list of keys in the L</present> HASH.
+Returns the list of keys in the L</present> HASH as a
+L<Data::Perl::Collection::Array>.
 
 =head2 topic
 
