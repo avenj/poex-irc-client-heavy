@@ -3,7 +3,7 @@ use strictures 1;
 use Carp;
 use Scalar::Util 'blessed';
 
-use Data::Perl 'array';
+use List::Objects::WithUtils 'array';
 
 use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
@@ -41,7 +41,7 @@ See L<POEx::IRC:Client::Heavy::State>
 
 =head2 prefixes
 
-A L<Data::Perl::Collection::Array> containing currently-visible status
+A L<List::Objects::WithUtils::Array> containing currently-visible status
 prefixes for the present user.
 
 =head1 AUTHOR

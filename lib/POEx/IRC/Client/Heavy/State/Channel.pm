@@ -3,7 +3,7 @@ use strictures 1;
 use Carp;
 use Scalar::Util 'blessed';
 
-use Data::Perl 'hash';
+use List::Objects::WithUtils 'hash';
 
 use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
@@ -14,12 +14,6 @@ use namespace::clean;
 has_ro topic => ();
 has_ro name  => ();
 has_ro present => ( default => hash );
-
-=pod
-
-=for Pod::Coverage new
-
-=cut
 
 sub new {
   my ($cls, %params) = @_;
@@ -38,8 +32,9 @@ sub new {
 
   if (defined $params{present}) {
     my $present = $params{present};
-    confess "Expected a Data::Perl::Collection::Hash"
-      unless blessed $present;
+    confess "Expected a List::Objects::WithUtils::Role::Hash consumer"
+      unless blessed $present
+      and $present->does('List::Objects::WithUtils::Role::Hash');
   }
 
   bless +{%params}, $cls
@@ -52,6 +47,12 @@ sub userlist {
 1;
 
 =pod
+
+=begin Pod::Coverage
+
+new
+
+=end Pod::Coverage
 
 =head1 NAME
 
@@ -76,13 +77,13 @@ Returns the channel's name (as we saw it at join-time).
 
 =head2 present
 
-A L<Data::Perl::Collection::Hash> mapping currently-present users 
+A L<List::Objects::WithUtils::Hash> mapping currently-present users 
 to their status prefixes, if any.
 
 =head2 userlist
 
 Returns the list of keys in the L</present> HASH as a
-L<Data::Perl::Collection::Array>.
+L<List::Objects::WithUtils::Array>.
 
 =head2 topic
 

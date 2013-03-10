@@ -8,10 +8,8 @@ use MooX::Types::MooseLike::Base qw/
   Str
 /;
 
-use Data::Perl 'array', 'hash';
-
 use IRC::Toolkit;
-
+use List::Objects::WithUtils;
 use Module::Runtime 'use_module';
 
 use_module($_) 
@@ -107,7 +105,7 @@ has $_ => (
 ## Channels
 sub channel_list {
   my ($self) = @_;
-  $self->_chans->values->map(sub { $_->name })
+  $self->_chans->values->map(sub { $_[0]->name })
 }
 
 sub update_channel {
@@ -212,7 +210,7 @@ sub channel_user_list {
   }
 
   $chan_obj->present->keys->map(sub {
-      $self->get_user($_)->nick
+      $self->get_user($_[0])->nick
   })->all
 }
 
@@ -255,7 +253,7 @@ sub add_status_prefix {
     $current->new_with_params(
       prefixes => [ $current->prefixes->all, $prefix ],
     )
-  ) unless $current->prefixes->grep(sub { $_ eq $prefix })->all;
+  ) unless $current->prefixes->grep(sub { $_[0] eq $prefix })->all;
 
   $chan_obj->present->get($upper)->prefixes
 }
@@ -281,7 +279,7 @@ sub del_status_prefix {
   my $current = $chan_obj->present->get($upper);
   $chan_obj->present->set( $upper =>
     $current->new_with_params(
-      prefixes => [ $current->prefixes->grep(sub { $_ ne $prefix })->all ],
+      prefixes => [ $current->prefixes->grep(sub { $_[0] ne $prefix })->all ],
     )
   );
 
@@ -307,7 +305,7 @@ sub get_status_prefix {
 
   if ($prefix) {
     for my $lookup (split '', $prefix) {
-      return $lookup if $puser->prefixes->grep(sub { $_ eq $lookup })->all;
+      return $lookup if $puser->prefixes->grep(sub { $_[0] eq $lookup })->all;
     }
     return
   }
@@ -366,7 +364,7 @@ sub get_user {
 sub add_capabs {
   my ($self, @cap) = @_;
 
-  for my $thiscap (array(@cap)->map(sub { lc })->all) {
+  for my $thiscap (array(@cap)->map(sub { lc $_[0] })->all) {
     $self->_capabs->set($thiscap => 1)
   }
 
@@ -377,7 +375,7 @@ sub clear_capabs {
   my ($self, @cap) = @_;
 
   $self->_capabs->delete(
-    array(@cap)->map(sub { lc })->all
+    array(@cap)->map(sub { lc $_[0] })->all
   )
 }
 
@@ -385,9 +383,9 @@ sub has_capabs {
   my ($self, @cap) = @_;
 
   array(@cap)->map( 
-    sub { lc } 
+    sub { lc $_[0] } 
   )->grep( 
-    sub { $self->_capabs->exists($_) } 
+    sub { $self->_capabs->exists($_[0]) } 
   )
 }
 
@@ -416,6 +414,8 @@ This is the state tracker for L<POEx::IRC::Client::Heavy>, providing access to
 See also:
 
 L<POEx::IRC::Client::Heavy::State::User>
+
+L<POEx::IRC::Client::Heavy::State::PresentUser>
 
 L<POEx::IRC::Client::Heavy::State::Channel>
 
@@ -457,7 +457,7 @@ L</isupport>, or 'rfc1459' if we haven't parsed ISUPPORT yet.
   my @caps = $state->capabs->all;
 
 Returns the list of declared CAP capabilities as a
-L<Data::Perl::Collection::Array>.
+L<List::Objects::WithUtils::Array>.
 
 =head3 add_capabs
 
@@ -480,7 +480,7 @@ Used internally by L<POEx::IRC::Client::Heavy>.
   my @capabs = $state->has_capabs(@capabs)->all;
 
 Given a list of CAP capabilities, returns the list of (lowercased) CAPs that
-were found in the L</capabs> list as a L<Data::Perl::Collection::Array>.
+were found in the L</capabs> list as a L<List::Objects::WithUtils::Array>.
 
 =head2 Channel state
 
@@ -489,11 +489,11 @@ were found in the L</capabs> list as a L<Data::Perl::Collection::Array>.
   my @chans = $state->channel_list->all;
 
   my @matching = $state->channel_list->grep(
-    sub { $_ =~ $regex }
+    sub { $_[0] =~ $regex }
   )->all;
 
 Returns the list of currently-seen channels as a
-L<Data::Perl::Collection::Array>.
+L<List::Objects::WithUtils::Array>.
 
 =head3 update_channel
 
@@ -567,7 +567,38 @@ Delete a named user from a channel's state.
 
 Used internally by L<POEx::IRC::Client::Heavy>.
 
-Returns a L<Data::Perl::Collection::Array> containing deleted objects.
+Returns a L<List::Objects::WithUtils::Array> containing deleted objects.
+
+=head3 add_status_prefix
+
+  $state->add_status_prefix( $channel =>
+    $nick => '@'
+  );
+
+Add a prefix character (such as retrieved from WHO) to the 
+L<POEx::IRC::Client::Heavy::State::PresentUser> struct belonging to the named
+channel.
+
+=head3 del_status_prefix
+
+  $state->del_status_prefix( $channel =>
+    $nick => '@'
+  );
+
+Delete a prefix character added via L</add_status_prefix>.
+
+=head3 get_status_prefix
+
+  if ( $state->get_status_prefix( $channel, $nick, '@' ) ) {
+    ... 
+  }
+
+Retrieve status prefixes added via L</add_status_prefix>.
+
+If a prefix character is specified, a boolean true value is returned if the
+user has the specified prefix in state.
+
+If no prefix is specified, the full known prefix string (e.g. '@+') is returned.
 
 =head2 User state
 
