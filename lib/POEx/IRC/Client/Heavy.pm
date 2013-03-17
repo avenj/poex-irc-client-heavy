@@ -505,34 +505,25 @@ sub N_irc_join {
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
 
   ## FIXME does our own JOIN include account in extended-join ?
-  my ($account, $orig);
   if ($self->state->has_capabs('extended-join')) {
-    ($account, $orig) = @{ $ircev->params };
+    ($account, $cname) = @{ $ircev->params };
     $account = undef if $account eq '*';
   } else {
-    $orig = $ircev->params->[0];
+    $cname = $ircev->params->[0];
   }
 
-  my $target = $self->upper($orig);
   $nick      = $self->upper($nick);
 
   if ( $self->equal($nick, $self->state->nick_name) ) {
     ## Us. Add new Channel struct.
-    ## FIXME new state syntax. can create an initial Topic obj here
-    $self->state->update = Channel->new(
-      name      => $orig,
-      nicknames => {},
-      topic     => Topic->new(
-        set_by => '',
-        set_at => 0,
-        topic  => '',
-      ),
+    $self->state->update_channel( $cname =>
+      topic => $self->state->create_struct( 'Topic' ),
     );
     ## ... and request a WHO(X):
-    $self->who( $orig );
+    $self->who( $cname );
  } else {
-    ##  Not us. Add or update User struct.
-    $self->state->update_user( $nick,
+    ##  Not us. Add or update visible User struct.
+    $self->state->update_user( $nick =>
       user => $user,
       host => $host,
       ( defined $account ? (account => $account) : () ),
@@ -540,8 +531,7 @@ sub N_irc_join {
     $self->who( $nick );
   }
 
-  my $chan_obj = $self->state->get_channel($target);
-  $self->state->get_channel($target)->present->set( $nick => array );
+  $self->state->get_channel($cname)->present->set( $nick => array );
 
   EAT_NONE
 }
@@ -554,9 +544,12 @@ sub N_irc_part {
 
   my $target = $self->upper( $ircev->params->[0] );
   $nick      = $self->upper( $nick );
-  
-  delete $self->state->channels->{$target};
 
+  ## FIXME
+  ##  - if this is us, kill the chan obj, check for now-unseen users
+  ##  - if not, remove user from present, see if they're now-unseen
+
+  ## FIXME new iface
   my $seen;
   while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
     $seen++ if exists $chan_obj->present->{$nick};
@@ -573,6 +566,8 @@ sub N_irc_quit {
   my ($nick) = parse_user( $ircev->prefix );
   $nick      = $self->upper($nick);
 
+  ## FIXME
+  ##  - drop this user from all visible state (chans/users)
   while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
     delete $chan_obj->present->{$nick}
   }

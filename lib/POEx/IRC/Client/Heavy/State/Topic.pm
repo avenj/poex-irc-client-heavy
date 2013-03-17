@@ -6,8 +6,8 @@ use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
 with 'POEx::IRC::Client::Heavy::Role::Clonable';
 
-has_ro topic  => ();
-has_ro set_by => ();
+has_ro topic  => ( default => '' );
+has_ro set_by => ( default => '' );
 has_ro set_at => ( default => 0 );
 
 =pod
