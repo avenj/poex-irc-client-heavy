@@ -21,8 +21,10 @@ extends 'POEx::IRC::Client::Lite';
 use POEx::IRC::Client::Heavy::State;
 
 use IRC::Message::Object 'ircmsg';
-
 use IRC::Toolkit;
+
+use List::Objects::WithUtils;
+
 use MooX::Role::Pluggable::Constants;
 
 has state => (
@@ -41,7 +43,7 @@ has _isupport_lines => (
   lazy    => 1,
   is      => 'ro',
   writer  => '_set_isupport_lines',
-  default => sub { [] },
+  default => sub { array },
 );
 
 
@@ -209,7 +211,7 @@ sub N_irc_001 {
     (split ' ', $ircev->raw_line)[2]
   );
 
-  $self->_set_isupport_lines([]);
+  $self->_set_isupport_lines( array );
 
   EAT_NONE
 }
@@ -220,8 +222,8 @@ sub N_irc_005 {
 
   ##  Accumulate and preserve isupport lines
   ##  Feed the whole set to parse_isupport as we get 005s
-  push @{ $self->_isupport_lines }, $ircev->raw_line;
-  $self->state->create_isupport(@{ $self->_isupport_lines });
+  $self->_isupport_lines->push( $ircev->raw_line );
+  $self->state->create_isupport( $self->_isupport_lines->all );
 
   EAT_NONE
 }
@@ -293,11 +295,13 @@ sub N_irc_352 {
     ## FIXME track these (timer?)
   }
 
+  ## FIXME state method for this?
   my %pfx_chars   = map {; $_ => 1 } values %{
     $self->state->isupport->prefix 
       || +{ o => '@', v => '+' } 
   };
 
+  ## FIXME new state methods:
   my $current_ref = $chan_obj->present->{ $self->upper($nick) };
   my %current     = map {; $_ => 1 } @$current_ref;
 
@@ -514,7 +518,8 @@ sub N_irc_join {
 
   if ( $self->equal($nick, $self->state->nick_name) ) {
     ## Us. Add new Channel struct.
-    $self->state->channels->{$target} = Channel->new(
+    ## FIXME new state syntax. can create an initial Topic obj here
+    $self->state->update = Channel->new(
       name      => $orig,
       nicknames => {},
       topic     => Topic->new(
@@ -535,8 +540,8 @@ sub N_irc_join {
     $self->who( $nick );
   }
 
-  my $chan_obj = $self->state->channels->{$target};
-  $chan_obj->present->{$nick} = [];
+  my $chan_obj = $self->state->get_channel($target);
+  $self->state->get_channel($target)->present->set( $nick => array );
 
   EAT_NONE
 }
