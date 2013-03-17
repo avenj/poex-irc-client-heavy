@@ -253,7 +253,7 @@ sub add_status_prefix {
     $current->new_with_params(
       prefixes => [ $current->prefixes->all, $prefix ],
     )
-  ) unless $current->prefixes->grep(sub { $_[0] eq $prefix })->all;
+  ) unless $current->prefixes->any_items eq $prefix;
 
   $chan_obj->present->get($upper)->prefixes
 }
@@ -305,7 +305,7 @@ sub get_status_prefix {
 
   if ($prefix) {
     for my $lookup (split '', $prefix) {
-      return $lookup if $puser->prefixes->grep(sub { $_[0] eq $lookup })->all;
+      return $lookup if $puser->prefixes->any_items eq $lookup;
     }
     return
   }
