@@ -9,6 +9,7 @@ extends 'POEx::IRC::Client::Lite';
 
 ## FIXME direct calls to channel objs should probably change
 ##  ->present should probably be treated as immutable
+##    these should be PresentUser structs
 
 #### TODO
 ## CAP negotiation.

@@ -12,11 +12,7 @@ with 'POEx::IRC::Client::Heavy::Role::Clonable';
 use namespace::clean;
 
 has_ro prefixes => ( default => array );
-
-sub new {
-  my ($cls, %params) = @_;
-  bless +{%params}, $cls
-}
+sub new { bless +{@_[1 .. $#_]}, $_[0] }
 
 1;
 
