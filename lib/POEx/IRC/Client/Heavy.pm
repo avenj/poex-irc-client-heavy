@@ -7,6 +7,9 @@ use Carp 'confess';
 
 extends 'POEx::IRC::Client::Lite';
 
+## FIXME direct calls to channel objs should probably change
+##  ->present should probably be treated as immutable
+
 #### TODO
 ## CAP negotiation.
 ##   We have multi-prefix support in our WHO parser.
@@ -476,11 +479,11 @@ sub N_irc_mode {
       and ref $mode_hash->{add}->{$char} eq 'ARRAY';
     my $param = $mode_hash->{add}->{$char}->[0];
     my $this_user;
-    unless ($this_user = $chan_obj->present->{ $self->upper($param) }) {
+    unless ($this_user = $chan_obj->present->get($self->upper($param)) {
       warn "Mode change for nonexistant user $param";
       next MODE_ADD
     }
-    push @$this_user, $prefixes{$char}
+    $this_user->push( $prefixes{$char} );
   }
 
   MODE_DEL: for my $char (keys %{ $mode_hash->{del} }) {
@@ -488,10 +491,11 @@ sub N_irc_mode {
       and ref $mode_hash->{del}->{$char} eq 'ARRAY';
     my $param = $mode_hash->{del}->{$char}->[0];
     my $this_user;
-    unless ($this_user = $chan_obj->present->{ $self->upper($param) }) {
+    unless ($this_user = $chan_obj->present->get($self->upper($param)) {
       warn "Mode change for nonexistant user $param";
       next MODE_DEL
     }
+    ## FIXME reset ->present item with new obj instead (chan method to do it?):
     @$this_user = grep {; $_ ne $prefixes{$char} } @$this_user
   }
 

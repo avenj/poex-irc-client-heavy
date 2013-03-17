@@ -44,12 +44,7 @@ sub create_struct {
     confess "cannot create struct - unknown type $type"
   }
 
-  if (defined $class) {
-    $obj = 
-      (join '::', 'POEx::IRC::Client::Heavy::State', $class)->new(@_)
-  }
-
-  $obj
+  (join '::', 'POEx::IRC::Client::Heavy::State', $class)->new(@_)
 }
 
 has isupport => (
