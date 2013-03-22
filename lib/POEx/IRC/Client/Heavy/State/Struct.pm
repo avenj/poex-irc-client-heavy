@@ -22,12 +22,19 @@ sub _gen_attr {
   if ($type eq 'rw') {
     $c .= "  if (\@_ == 2) {\n";
     $c .= "    return \$_[0]->{'$attr'} = \$_[1];\n";
+    $c .= "  } elsif (\@_ > 2) {\n";
+    $c .= "    Carp::confess 'Too many args passed to writer for $attr'\n";
     $c .= "  }\n";
-  } 
+  } elsif ($type eq 'ro') {
+    $c .= "  Carp::confess 'Cannot write to read-only attrib $attr'\n";
+    $c .= "    if \@_ > 1;\n";
+  } else {
+    confess "Unknown type $type"
+  }
   if (defined $default) {
-    $c .= "  return \$_[0]->{'$attr'} if exists \$_[0]->{'$attr'};\n"
-        . "  return \$_[0]->{'$attr'} = "
-        . ref $default eq 'CODE' ? '$default->($_[0]);' : '$default';
+    $c .= "  return \$_[0]->{'$attr'} if exists \$_[0]->{'$attr'};\n";
+    $c .= "  return \$_[0]->{'$attr'} = ";
+    $c .= ref $default eq 'CODE' ? '$default->($_[0]);' : '$default;' ;
   }
   $c .= "  return \$_[0]->{'$attr'} \n}";
 
@@ -68,7 +75,7 @@ POEx::IRC::Client::Heavy::State::Struct - Simple accessors for state structs
 
   # Immutable:
   has_ro things => ();
-  has_ro array  => ( default => [] );
+  has_ro array  => ( default => sub { [] } );
 
   # Basic minimalist example constructor:
   sub new {
@@ -109,7 +116,7 @@ Creates a read-only attribute. A B<default> can optionally be specified:
   has_ro stuff => ( default => 'things' );
 
 The B<default> can be a coderef, in which case it is passed the '$self'
-object.
+object. Otherise, it should be a simple scalar or constant value.
 
 =head3 has_rw
 
