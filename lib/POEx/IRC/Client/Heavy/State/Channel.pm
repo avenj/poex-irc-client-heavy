@@ -13,7 +13,7 @@ use namespace::clean;
 
 has_ro topic => ();
 has_ro name  => ();
-has_ro present => ( default => hash );
+has_ro present => ( default => sub { hash } );
 
 sub new {
   my ($cls, %params) = @_;
