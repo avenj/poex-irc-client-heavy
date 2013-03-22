@@ -9,54 +9,45 @@ our @EXPORT = qw/
   has_rw 
 /;
 
-sub has_ro {
-  my ($acc, %params) = @_;
+sub _gen_attr {
+  my ($class, $type, $attr, %params) = @_;
+  confess "Invalid attrib name $attr" unless $attr =~ /^[a-zA-Z_]\w*$/;
 
-  no strict 'refs';
-  if (defined (my $default = $params{default})) {
-
-    *{ caller().'::'.$acc } = sub {
-      confess "Read-only attribute $acc" if @_ > 1;
-      return $_[0]->{$acc} if exists $_[0]->{$acc};
-      $_[0]->{$acc} = ref $default eq 'CODE' ?
-        $default->($_[0]) : $default;
-    }
-
-  } else {
-
-    *{ caller().'::'.$acc } = sub {
-      confess "Read-only attribute $acc" if @_ > 1;
-      $_[0]->{$acc}
-    }
-
+  my $default = $params{default};
+  if (ref $default && ref $default ne 'CODE') {
+    confess "Expected default => to be a CODE ref or simple scalar"
   }
+
+  my $c = "package $class;\nsub $attr {\n";
+  if ($type eq 'rw') {
+    $c .= "  if (\@_ == 2) {\n";
+    $c .= "    return \$_[0]->{'$attr'} = \$_[1];\n";
+    $c .= "  }\n";
+  } 
+  if (defined $default) {
+    $c .= "  return \$_[0]->{'$attr'} if exists \$_[0]->{'$attr'};\n"
+        . "  return \$_[0]->{'$attr'} = "
+        . ref $default eq 'CODE' ? '$default->($_[0]);' : '$default';
+  }
+  $c .= "  return \$_[0]->{'$attr'} \n}";
+
+  warn "  -> inst $attr in $class\n$c\n\n" if $ENV{POEX_IRCCLI_HEAVY_DEBUG};
+  no strict 'refs';
+  confess "Failed in attrib creation ($class $attr): $@"
+    unless eval "$c; 1";
+}
+
+
+sub has_ro {
+  my $attr   = shift;
+  my $caller = caller();
+  _gen_attr($caller, 'ro', $attr, @_)
 }
 
 sub has_rw {
-  my ($acc, %params) = @_;
-
-  no strict 'refs';
-  if (defined (my $default = $params{default})) {
-
-    *{ caller().'::'.$acc } = sub {
-      confess "Too many arguments passed to writer for $acc"
-        if @_ > 2;
-      return $_[0]->{$acc} = $_[1] if @_ == 2;
-      return $_[0]->{$acc} if exists $_[0]->{$acc};
-      $_[0]->{$acc} = ref $default eq 'CODE' ?
-        $default->($_[0]) : $default;
-    }
-
-  } else {
-
-    *{ caller().'::'.$acc } = sub {
-      confess "Too many arguments passed to writer for $acc"
-        if @_ > 2;
-      return $_[0]->{$acc} = $_[1] if @_ == 2;
-      $_[0]->{$acc}
-    }
-
-  }
+  my $attr = shift;
+  my $caller = caller();
+  _gen_attr($caller, 'rw', $attr, @_)
 }
 
 1;
@@ -97,7 +88,7 @@ POEx::IRC::Client::Heavy::State::Struct - Simple accessors for state structs
   # default:
   push @{ $struct->array }, qw/ a b c /;
   # rw attribute:
-  $struct->objects( \@objs );
+  $struct->objects( [ 'a', 'b' ] );
 
 =head1 DESCRIPTION
 

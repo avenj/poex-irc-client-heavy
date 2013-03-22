@@ -377,11 +377,12 @@ sub clear_capabs {
 sub has_capabs {
   my ($self, @cap) = @_;
 
-  array(@cap)->map( 
-    sub { lc $_[0] } 
-  )->grep( 
-    sub { $self->_capabs->exists($_[0]) } 
-  )
+  ## FIXME triggers indirect-0.29 bug? see rt83806
+  use indirect;
+  array(@cap)
+    ->map(sub {  lc $_[0] })
+    ->grep(sub { $self->_capabs->exists($_[0]) })
+    ->all
 }
 
 sub capabs { $_[0]->_capabs->keys }
