@@ -109,21 +109,11 @@ sub unmonitor {
 sub who {
   my ($self, $target, $whox) = @_;
 
-  if ($whox || $self->state->isupport->whox) {
-    ## Send WHOX, hope for a compliant implementation.
-    $self->send( 
-      ev( 
-        command => 'who', params => [ $orig, '%tcnuhafr,912' ] 
-      ) 
-    );
-  } else {
-    ## No WHOX, send WHO.
-    $self->send(
+  $self->send(
       ev( 
         command => 'who', params => [ $orig ] 
       )
-    );
-  }
+  );
 
   $self
 }
@@ -315,42 +305,6 @@ sub N_irc_352 {
       if exists $pfx_chars{$bit}
       and not $current{$bit};
   }
-
-  EAT_NONE
-}
-
-sub N_irc_354 {
-  ## WHOX reply
-  my (undef, $self) = splice @_, 0, 2;
-  my $ircev = ${ $_[0] };
-  ## FIXME check for correctness
-  ## Seems these may vary, esp. with (old?) ircu
-  ## Cannot seem to find very many people with useful information on the
-  ## topic, not sure I can be arsed to dig deep on it myself . . .
-  my (
-    $tag,       ## Numeric tag
-    $channel,   ## Channel
-    $user,      ## Username
-    $host,      ## Hostname
-    $nick,      ## Nickname
-    $status,    ## H*@ etc
-    $account,   ## Account or '0'
-    $realname   ## Realname (no hops)
-  ) = @{ $ircev->params };
-
-  $account = undef if $account eq '0';
-
-  my @status_bits = split '', $status;
-  my $here_or_not = shift @status_bits;
-  $here_or_not eq 'G' ? $user_obj->is_away(1) : $user_obj->is_away(0) ;
-  ## FIXME rest of status parser
-  ## FIXME update Structs appropriately
-
-
-  ## FIXME hum. may reach end-of-who before we have all replies,
-  ##  according to ircu behavior?
-  ##  Use NAMES to build full list and reissue WHO for incomplete
-  ##  User structs...?
 
   EAT_NONE
 }
