@@ -34,9 +34,10 @@ sub _gen_attr {
   if (defined $default) {
     $c .= "  return \$_[0]->{'$attr'} if exists \$_[0]->{'$attr'};\n";
     $c .= "  return \$_[0]->{'$attr'} = ";
-    $c .= ref $default eq 'CODE' ? '$default->($_[0]);' : '$default;' ;
+    # Already know this is a CODE reftype or non-ref (above):
+    $c .= ref $default ? '$default->($_[0]);' : '$default;' ;
   }
-  $c .= "  return \$_[0]->{'$attr'} \n}";
+  $c .= "\n  \$_[0]->{'$attr'} \n}\n";
 
   warn "  -> inst $attr in $class\n$c\n\n" if $ENV{POEX_IRCCLI_HEAVY_DEBUG};
   no strict 'refs';
