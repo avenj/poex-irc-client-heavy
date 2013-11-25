@@ -1,11 +1,6 @@
 package POEx::IRC::Client::Heavy;
-
-use 5.10.1;
-use Moo;
+use Defaults::Modern;
 use POE;
-use Carp 'confess';
-
-extends 'POEx::IRC::Client::Lite';
 
 ## FIXME direct calls to channel objs should probably change
 ##  ->present should probably be treated as immutable
@@ -22,30 +17,36 @@ extends 'POEx::IRC::Client::Lite';
 ## methods to check for shared channels
 ##  hooks in quit/part/disconnect to clear no-longer-seen users/channels
 
-use POEx::IRC::Client::Heavy::State;
 
 use IRC::Message::Object 'ircmsg';
 use IRC::Toolkit;
 
-use List::Objects::WithUtils;
 
 use MooX::Role::Pluggable::Constants;
+use POEx::IRC::Client::Heavy::State;
 
-has state => (
-  lazy    => 1,
-  is      => 'ro',
-  writer  => '_set_state',
-  default => sub {
-    POEx::IRC::Client::Heavy::State->new
-  },
-);
+
+use Moo; use MooX::late;
+extends 'POEx::IRC::Client::Lite';
 
 sub casemap { $_[0]->state->casemap }
 with 'IRC::Toolkit::Role::CaseMap';
 
+
+has state => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => InstanceOf['POEx::IRC::Client::Heavy::State'],
+  writer  => '_set_state',
+  builder => 1,
+);
+sub _build_state { POEx::IRC::Client::Heavy::State->new }
+
+
 has _isupport_lines => (
   lazy    => 1,
   is      => 'ro',
+  isa     => ArrayObj,
   writer  => '_set_isupport_lines',
   default => sub { array },
 );
@@ -98,20 +99,19 @@ around _ctcp => sub {
 
 ### Public.
 ## FIXME these should maybe have POE counterparts
-sub monitor {
+method monitor () {
   ## FIXME transparently use NOTIFY if no MONITOR support?
 }
 
-sub unmonitor {
+method unmonitor () {
   ## FIXME
 }
 
-sub who {
-  my ($self, $target, $whox) = @_;
-
+method who ($target) {
+  # FIXME whox ?
   $self->send(
       ev( 
-        command => 'who', params => [ $orig ] 
+        command => 'who', params => [ $target ] 
       )
   );
 
@@ -156,37 +156,37 @@ sub N_irc_cap {
   if ($cmd eq 'ack') {
     for my $thiscap (@caps) {
       my $maybe_prefix = substr $thiscap, 0, 1;
-      if (grep {; $_ eq $maybe_prefix } ('-', '=', '~')) {
+      if ( array('-', '=', '~')->has_any(sub { $_ eq $maybe_prefix }) ) {
         my $actual = $thiscap;
         substr $actual, 0, 1, '';
-        
-        for ($maybe_prefix) {
-          when ('-') {
+        sswitch ($maybe_prefix) {
+          case '-': {
             ## Negated.
             $self->state->clear_capabs($actual);
-            $self->emit( 'cap_cleared', $actual );
+            $self->emit( cap_cleared => $actual );
           }
-          when ('=') {
+          case '=': {
             ## Sticky.
             ## We don't track these, at the moment.
             $self->state->add_capabs($actual);
-            $self->emit( 'cap_added', $actual );
+            $self->emit( cap_added => $actual );
           }
-          when ('~') {
+          case '~': {
             ## Requires an ACK
             $self->state->add_capabs($actual);
-            $self->emit( 'cap_added', $actual );
+            $self->emit( cap_added => $actual );
             $self->send(
               ev( command => 'cap', params  => [ 'ack', $actual ] )
             )
           }
-          
+          default: {
+            confess "Fell through: unknown CAP ACK prefix $maybe_prefix"
+          }
         }
-
       } else {
         ## Not prefixed.
         $self->state->add_capabs($thiscap);
-        $self->emit( 'cap_added', $thiscap );
+        $self->emit( cap_added => $thiscap );
       }
 
     }
@@ -525,10 +525,9 @@ sub N_irc_quit {
   my ($nick) = parse_user( $ircev->prefix );
   $nick      = $self->upper($nick);
 
-  ## FIXME
-  ##  - drop this user from all visible state (chans/users)
-  while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
-    delete $chan_obj->present->{$nick}
+  for my $chname ($self->state->channel_list) {
+    my $chan_obj = $self->state->get_channel($chname);
+    $chan_obj->present->delete($nick);
   }
 
   $self->state->del_user($nick);
