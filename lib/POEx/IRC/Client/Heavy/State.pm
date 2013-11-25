@@ -1,51 +1,34 @@
 package POEx::IRC::Client::Heavy::State;
-use Carp;
-use strictures 1;
-use 5.10.1;
-use Moo;
-use MooX::Types::MooseLike::Base qw/
-  Object
-  Str
-/;
+use Defaults::Modern;
 
 use IRC::Toolkit;
-use List::Objects::WithUtils;
 use Module::Runtime 'use_module';
 
-use_module($_) 
-  for map {; 'POEx::IRC::Client::Heavy::State::'.$_ } qw/
-    Channel
-    Topic
-    User
-    PresentUser
-/;
 
+use Moo; use MooX::late;
 use namespace::clean;
 
-=pod
-
-=for Pod::Coverage create_struct
-
-=cut
 
 sub create_struct {
   ## Factory method to make it easier for subclasses to build ::Structs
   my ($self, $type) = splice @_, 0, 2;
 
   my ($class, $obj);
-  for (lc $type) {
-    $class = 'Channel'     when 'channel';
-    $class = 'Topic'       when 'topic';
-    $class = 'User'        when 'user';
-    $class = 'PresentUser' when 'presentuser';
-
-    $obj = parse_isupport(@_) when 'isupport';
-
-    confess "cannot create struct - unknown type $type"
+  sswitch (lc $type) {
+    case 'channel':     { $class = 'Channel' }
+    case 'topic':       { $class = 'Topic'   }
+    case 'user':        { $class = 'User'    }
+    case 'presentuser': { $class = 'PresentUser' }
+    case 'isupport': { $obj = parse_isupport(@_) }
+    default: { 
+      confess "cannot create struct - unknown type $type"
+    }
   }
 
-  (join '::', 'POEx::IRC::Client::Heavy::State', $class)->new(@_)
+  $obj ? $obj
+    : use_module(join '::', 'POEx::IRC::Client::Heavy::State', $class)->new(@_)
 }
+
 
 has isupport => (
   ## Should be created via create_isupport
@@ -63,12 +46,12 @@ sub create_isupport {
   )
 }
 
+
 sub casemap {
   my ($self) = @_;
   return 'rfc1459' unless $self->has_isupport;
   $self->isupport->casemap || 'rfc1459'
 }
-
 with 'IRC::Toolkit::Role::CaseMap';
 
 ##    nick_name
@@ -90,6 +73,9 @@ has $_ => (
 has $_ => (
   lazy    => 1,
   is      => 'ro',
+  isa     => HashObj,
+  clearer => '_clear_'.$_,
+  writer  => '_set_'.$_,
   default => sub { hash },
 ) for qw/ 
   _users 
@@ -100,7 +86,7 @@ has $_ => (
 ## Channels
 sub channel_list {
   my ($self) = @_;
-  $self->_chans->values->map(sub { $_[0]->name })
+  $self->_chans->values->map(sub { $_->name })
 }
 
 sub update_channel {
@@ -205,7 +191,7 @@ sub channel_user_list {
   }
 
   $chan_obj->present->keys->map(sub {
-      $self->get_user($_[0])->nick
+      $self->get_user($_)->nick
   })->all
 }
 
@@ -274,7 +260,9 @@ sub del_status_prefix {
   my $current = $chan_obj->present->get($upper);
   $chan_obj->present->set( $upper =>
     $current->new_with_params(
-      prefixes => [ $current->prefixes->grep(sub { $_[0] ne $prefix })->all ],
+      prefixes => [ 
+        $current->prefixes->grep(sub { $_ ne $prefix })->all 
+      ],
     )
   );
 
@@ -359,7 +347,7 @@ sub get_user {
 sub add_capabs {
   my ($self, @cap) = @_;
 
-  for my $thiscap (array(@cap)->map(sub { lc $_[0] })->all) {
+  for my $thiscap (array(@cap)->map(sub { lc })->all) {
     $self->_capabs->set($thiscap => 1)
   }
 
@@ -370,18 +358,18 @@ sub clear_capabs {
   my ($self, @cap) = @_;
 
   $self->_capabs->delete(
-    array(@cap)->map(sub { lc $_[0] })->all
+    array(@cap)->map(sub { lc })->all
   )
 }
 
 sub has_capabs {
   my ($self, @cap) = @_;
 
-  ## FIXME triggers indirect-0.29 bug? see rt83806
+  ## triggers indirect-0.29 bug (rt83806)
   use indirect;
   array(@cap)
-    ->map(sub {  lc $_[0] })
-    ->grep(sub { $self->_capabs->exists($_[0]) })
+    ->map(sub { lc })
+    ->grep(sub { $self->_capabs->exists($_) })
     ->all
 }
 
