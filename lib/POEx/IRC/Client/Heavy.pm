@@ -541,16 +541,11 @@ sub N_irc_topic {
   
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
   my ($target, $str) = @{ $ircev->params };
-  $target = $self->upper($target);
 
-  ## FIXME object api for new State
- 
-  my $chan_obj = $self->state->channels->{$target};
-  $chan_obj->topic( Topic->new(
-      set_at => time(),
-      set_by => $ircev->prefix,
-      topic  => $str,
-    )
+  $self->state->update_channel_topic( $target =>
+    set_at => time(),
+    set_by => $ircev->prefix,
+    topic  => $str,
   );
 
   EAT_NONE

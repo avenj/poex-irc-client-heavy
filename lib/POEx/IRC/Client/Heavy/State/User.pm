@@ -1,11 +1,11 @@
 package POEx::IRC::Client::Heavy::State::User;
-use 5.10.1;
-use strictures 1;
-use Carp;
+use Defaults::Modern;
 
 use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;
 with 'POEx::IRC::Client::Heavy::Role::Clonable';
+
+use namespace::clean;
 
 has_ro account  => ();
 has_ro nick     => ();

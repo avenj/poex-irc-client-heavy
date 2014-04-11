@@ -19,7 +19,7 @@ sub new_with_params {
     unless blessed $self;
   my %cur = %{ $self->clone };
   @cur{keys %params} = values %params;
-  ref($self)->new(%cur)
+  blessed($self)->new(%cur)
 }
 
 1;

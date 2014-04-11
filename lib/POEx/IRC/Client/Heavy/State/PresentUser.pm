@@ -1,9 +1,5 @@
 package POEx::IRC::Client::Heavy::State::PresentUser;
-use strictures 1;
-use Carp;
-use Scalar::Util 'blessed';
-
-use List::Objects::WithUtils 'array';
+use Defaults::Modern;
 
 use Role::Tiny::With;
 use POEx::IRC::Client::Heavy::State::Struct;

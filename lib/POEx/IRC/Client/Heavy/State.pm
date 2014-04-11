@@ -39,16 +39,11 @@ has isupport => (
   predicate => 'has_isupport',
 );
 
-sub create_isupport {
-  my ($self, @items) = @_;
-  $self->_set_isupport(
-    $self->create_struct( ISupport => @items )
-  )
+method create_isupport (@items) {
+  $self->_set_isupport( $self->create_struct( ISupport => @items ) )
 }
 
-
-sub casemap {
-  my ($self) = @_;
+method casemap {
   return 'rfc1459' unless $self->has_isupport;
   $self->isupport->casemap || 'rfc1459'
 }
@@ -233,7 +228,7 @@ method del_status_prefix ($channel, $nick, $prefix) {
   $chan_obj->present->get($upper)->prefixes
 }
 
-method get_status_prefix ($channel, $nick, $prefix) {
+method get_status_prefix ($channel, $nick, $prefix = undef) {
   my $chan_obj;
   unless ($chan_obj = $self->get_channel($channel)) {
     carp "Not currently on $channel - cannot retrieve prefix";

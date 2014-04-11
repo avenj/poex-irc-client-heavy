@@ -1,10 +1,12 @@
 package POEx::IRC::Client::Heavy::State::Topic;
-use strictures 1;
-use Carp;
+use Defaults::Modern;
+
 use Role::Tiny::With;
 
 use POEx::IRC::Client::Heavy::State::Struct;
 with 'POEx::IRC::Client::Heavy::Role::Clonable';
+
+use namespace::clean;
 
 has_ro topic  => ( default => '' );
 has_ro set_by => ( default => '' );
