@@ -1,27 +1,32 @@
 package POEx::IRC::Client::Heavy::State::Channel;
+
 use Defaults::Modern;
 
-use Role::Tiny::With;
-use POEx::IRC::Client::Heavy::State::Struct;
-with 'POEx::IRC::Client::Heavy::Role::Clonable';
+use POEx::IRC::Client::Heavy::State::Topic;
 
-use namespace::clean;
+use Moo; use MooX::late;
 
-has_ro topic => ( default => sub { '' } );
-has_ro name  => ();
-has_ro present => ( default => sub { hash } );
+has name => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+);
 
-method new ($class:
-  Str               :$name,
-  (Object  | Undef) :$topic,
-  (HashObj | Undef) :$present
-) {
-  bless +{
-          name    => $name,
-    maybe topic   => $topic,
-    maybe present => $present,
-  }, $class
-}
+has present => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashObj,
+  coerce    => 1,
+  builder   => sub { +{} },
+);
+
+has topic => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => InstanceOf['POEx::IRC::Client::Heavy::State::Topic'],
+  builder   => sub { POEx::IRC::Client::Heavy::State::Topic->new },
+);
+
 
 method userlist { $self->present->keys }
 
@@ -47,8 +52,6 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 
 This class defines struct-like objects representing the state of an 
 IRC channel for L<POEx::IRC::Client::Heavy>.
-
-These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
 
 See L<POEx::IRC::Client::Heavy::State>.
 

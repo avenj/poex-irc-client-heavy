@@ -1,43 +1,53 @@
 package POEx::IRC::Client::Heavy::State::User;
+
 use Defaults::Modern;
 
-use Role::Tiny::With;
-use POEx::IRC::Client::Heavy::State::Struct;
-with 'POEx::IRC::Client::Heavy::Role::Clonable';
 
-use namespace::clean;
+use Moo; use MooX::late;
 
-has_ro account  => ();
-has_ro nick     => ();
-has_ro user     => ();
-has_ro host     => ();
-has_ro realname => ();
-has_ro is_away  => ( default  => 0 );
-has_ro is_oper  => ( default  => 0 );
+has account => (
 
-=pod
+);
 
-=for Pod::Coverage new
+has nick => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+);
 
-=cut
+has user => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+);
 
-sub new {
-  my ($cls, %params) = @_;
+has host => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+);
 
-  my @required = qw/
-    nick
-    user
-    host
-    realname
-  /;
+has realname => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  builder   => sub { '' },
+);
 
-  for my $opt (@required) {
-    confess "Missing required param $opt"
-      unless defined $params{$opt};
-  }
+has is_away => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Bool,
+  builder   => sub { 0 },
+);
 
-  bless +{%params}, $cls;
-}
+has is_oper => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Bool,
+  builder   => sub { 0 },
+);
+
 
 1;
 
@@ -55,8 +65,6 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 
 This class defines struct-like objects representing the state of 
 a known IRC user for L<POEx::IRC::Client::Heavy>.
-
-These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
 
 See L<POEx::IRC::Client::Heavy::State>.
 

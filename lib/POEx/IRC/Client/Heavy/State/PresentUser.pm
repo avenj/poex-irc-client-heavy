@@ -1,14 +1,18 @@
 package POEx::IRC::Client::Heavy::State::PresentUser;
+
 use Defaults::Modern;
 
-use Role::Tiny::With;
-use POEx::IRC::Client::Heavy::State::Struct;
-with 'POEx::IRC::Client::Heavy::Role::Clonable';
 
-use namespace::clean;
+use Moo; use MooX::late;
 
-has_ro prefixes => ( default => sub { array } );
-sub new { bless +{@_[1 .. $#_]}, $_[0] }
+has prefixes => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => ArrayObj,
+  coerce    => 1,
+  builder   => sub { [] },
+);
+
 
 1;
 
@@ -27,9 +31,7 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 This class defines struct-like objects representing the state of a user
 present on a L<POEx::IRC::Client::Heavy::State::Channel>.
 
-These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
-
-See L<POEx::IRC:Client::Heavy::State>
+See L<POEx::IRC:Client::Heavy::State>.
 
 =head2 prefixes
 

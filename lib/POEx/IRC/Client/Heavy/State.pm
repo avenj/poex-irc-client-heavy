@@ -6,7 +6,6 @@ use Module::Runtime 'use_module';
 
 
 use Moo; use MooX::late;
-use namespace::clean;
 
 
 sub create_struct {
@@ -33,6 +32,7 @@ sub create_struct {
 has isupport => (
   ## Should be created via create_isupport
   ##  (after accumulating 005s)
+  lazy      => 1,
   is        => 'ro',
   isa       => Object,
   writer    => '_set_isupport',

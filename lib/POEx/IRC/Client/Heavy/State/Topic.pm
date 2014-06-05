@@ -1,16 +1,30 @@
 package POEx::IRC::Client::Heavy::State::Topic;
+
 use Defaults::Modern;
 
-use Role::Tiny::With;
 
-use POEx::IRC::Client::Heavy::State::Struct;
-with 'POEx::IRC::Client::Heavy::Role::Clonable';
+use Moo; use MooX::late;
 
-use namespace::clean;
+has topic => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  builder   => sub { '' },
+);
 
-has_ro topic  => ( default => '' );
-has_ro set_by => ( default => '' );
-has_ro set_at => ( default => 0 );
+has set_by => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  builder   => sub { '' },
+);
+
+has set_at => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => StrictNum,
+  builder   => sub { 0 },
+);
 
 =pod
 
@@ -44,8 +58,6 @@ Used internally by L<POEx::IRC::Client::Heavy::State>
 
 This class defines lightweight struct-like objects representing channel
 topics for L<POEx::IRC::Client::Heavy>.
-
-These classes consume L<POEx::IRC::Client::Heavy::Role::Clonable>.
 
 See L<POEx::IRC::Client::Heavy::State>.
 

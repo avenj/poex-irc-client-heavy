@@ -180,7 +180,7 @@ sub N_irc_cap {
             )
           }
           default: {
-            confess "Fell through: unknown CAP ACK prefix $maybe_prefix"
+            warn "Unknown CAP ACK prefix $maybe_prefix"
           }
         }
       } else {
